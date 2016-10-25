@@ -70,7 +70,7 @@ function loadMoreResponses() {
         data: {requestResponsesReloadIndex: requestResponsesReloadIndex},
         success: function (data) {
             requestResponses = data.requestResponses;
-            var requestResponsesHtml = "<table class="table"> <tbody>";
+            var requestResponsesHtml = "<table class='table'> <tbody>";
             for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
                 requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
             }
