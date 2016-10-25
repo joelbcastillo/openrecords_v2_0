@@ -46,8 +46,8 @@ $(document).ready(function () {
     $('#phone').attr('data-parsley-required-message', "");
     $('#fax').attr('data-parsley-required-message', "");
     $('#address-line-1').attr('data-parsley-required-message', "");
-    $('#city').attr('data-parsley-required-message',"");
-    $('#zipcode').attr('data-parsley-required-message',"");
+    $('#city').attr('data-parsley-required-message', "");
+    $('#zipcode').attr('data-parsley-required-message', "");
 
     // Checks that at least one form of contact was filled out in addition to the rest of the form.
     $('#request-form').parsley().on('form:validate', function () {
@@ -57,9 +57,9 @@ $(document).ready(function () {
         }
         // If address is filled out then make sure the city, state, and zipcode are filled.
         if ($('#address-line-1').parsley().isValid()){
-                $('#city').attr('data-parsley-required',"");
-                $('#state').attr('data-parsley-required',"");
-                $('#zipcode').attr('data-parsley-required',"");
+                $('#city').attr('data-parsley-required', "");
+                $('#state').attr('data-parsley-required', "");
+                $('#zipcode').attr('data-parsley-required', "");
             }
         // Checks that at least one of the contact information fields is filled in addition to the rest of the form
         if ($('#phone').parsley().isValid() ||
@@ -77,9 +77,9 @@ $(document).ready(function () {
         else {
             // If none of the fields are valid then produce an error message and apply required fields.
             $('.contact-form-error-message').html("*At least one of the following must be filled out: Email, Phone, Fax, and/or Address (with City, State, and Zipcode)");
-            $('#fax').attr('data-parsley-required', '');
-            $('#phone').attr('data-parsley-required', '');
-            $('#address-line-1').attr('data-parsley-required', '');
+            $('#fax').attr('data-parsley-required', "");
+            $('#phone').attr('data-parsley-required', "");
+            $('#address-line-1').attr('data-parsley-required', "");
         }
     });
 
