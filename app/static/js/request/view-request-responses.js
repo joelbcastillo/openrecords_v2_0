@@ -32,7 +32,7 @@ function previousResponses() {
         requestResponsesIndex = requestResponsesIndex - requestResponsesIndexShift;
         var requestResponsesHtml = '<table class="table"> <tbody>';
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-            requestResponsesHtml = request_responses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+            requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
         }
         document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     }
@@ -47,10 +47,11 @@ function previousResponses() {
 function nextResponses() {
     if (requestResponsesIndex != requestResponses.length - requestResponsesIndexShift) {
         requestResponsesIndex = requestResponsesIndex + requestResponsesIndexShift;
-        var request_responses_html = '<table class="table"> <tbody>';
+        var requestResponsesHtml = '<table class="table"> <tbody>';
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-            request_responses_html = request_responses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+            requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
         }
+        document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     }
 
     if (requestResponsesIndex == requestResponses.length - requestResponsesIndexShift) {
@@ -68,11 +69,15 @@ function loadMoreResponses() {
         url: '/request/api/v1.0/responses',
         data: {requestResponsesReloadIndex: requestResponsesReloadIndex},
         success: function (data) {
-            requestResponses = data.request_responses;
-            var request_responses_html = '<table class="table"> <tbody>';
+            requestResponses = data.requestResponses;
+            var requestReponsesHtml = '<table class="table"> <tbody>';
             for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-                request_responses_html = request_responses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+                requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
             }
+            document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
+        },
+        error: function (error) {
+            console.log(error);
         }
     })
 }
