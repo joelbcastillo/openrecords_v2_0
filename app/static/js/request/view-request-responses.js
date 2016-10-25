@@ -30,11 +30,11 @@ $.ajax({
 function previousResponses() {
     if (requestResponsesIndex != 0) {
         requestResponsesIndex = requestResponsesIndex - requestResponsesIndexShift;
-        var request_responses_html = '<table class="table"> <tbody>';
+        var requestResponsesHtml = '<table class="table"> <tbody>';
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-            request_responses_html = request_responses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+            requestResponsesHtml = request_responses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
         }
-        document.getElementById("request-responses-table").innerHTML = request_responses_html;
+        document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     }
     if (requestResponsesIndex == requestResponses.length - requestResponsesIndexShift) {
         $(".load-more-responses").show();
