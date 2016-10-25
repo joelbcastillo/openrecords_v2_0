@@ -1,5 +1,5 @@
 // initialize variables
-var requestHistory_reload_index = 0; // index to keep track of number of events loaded, load 50 more events for every increment of 1
+var requestHistoryReloadIndex = 0; // index to keep track of number of events loaded, load 50 more events for every increment of 1
 var requestHistoryIndex = 0; // index to keep track of which interval of events are shown
 var requestHistory; // initialize variable to store list of events
 var requestHistoryIndexShift = 5; // index number used to increment or decrement requestHistoryIndex
@@ -12,7 +12,7 @@ $(document).ready(function () {
     $.ajax({
         type: "POST",
         url: '/request/api/v1.0/history',
-        data: {requestHistory_reload_index: requestHistory_reload_index},
+        data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
             requestHistory = data.requestHistory;
             var requestHistoryHtml = '<table class="table"> <tbody>';
@@ -63,11 +63,11 @@ function next_history() {
 
 // loads 50 more history events into requestHistory array
 function load_more_history() {
-    requestHistory_reload_index++;
+    requestHistoryReloadIndex++;
     $.ajax({
         type: "POST",
         url: '/request/api/v1.0/history',
-        data: {requestHistory_reload_index: requestHistory_reload_index},
+        data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
             requestHistory = data.requestHistory;
             var requestHistoryHtml = '<table class="table"> <tbody>';
