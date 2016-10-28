@@ -11,13 +11,13 @@ $(".load-more-history").hide();
 $(document).ready(function () {
     $.ajax({
         type: "POST",
-        url: '/request/api/v1.0/history',
+        url: "/request/api/v1.0/history",
         data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
             requestHistory = data.requestHistory;
-            var requestHistoryHtml = '<table class="table"> <tbody>';
+            var requestHistoryHtml = "<table class="table"> <tbody>";
             for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
-                requestHistoryHtml = requestHistoryHtml + '<tr> <td>' + requestHistory[i] + '</td> </tr>';
+                requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
             }
             document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
         },
@@ -31,9 +31,9 @@ $(document).ready(function () {
 function previousHistory() {
     if (requestHistoryIndex != 0) {
         requestHistoryIndex = requestHistoryIndex - requestHistoryIndexShift;
-        var requestHistoryHtml = '<table class="table"> <tbody>';
+        var requestHistoryHtml = "<table class="table"> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
-            requestHistoryHtml = requestHistoryHtml + '<tr> <td>' + requestHistory[i] + '</td> </tr>';
+            requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
         }
         document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
     }
@@ -48,9 +48,9 @@ function previousHistory() {
 function nextHistory() {
     if (requestHistoryIndex != requestHistory.length - requestHistoryIndexShift) {
         requestHistoryIndex = requestHistoryIndex + requestHistoryIndexShift;
-        var requestHistoryHtml = '<table class="table"> <tbody>';
+        var requestHistoryHtml = "<table class="table"> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
-            requestHistoryHtml = requestHistoryHtml + '<tr> <td>' + requestHistory[i] + '</td> </tr>';
+            requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
         }
         document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
     }
@@ -66,13 +66,13 @@ function loadMoreHistory() {
     requestHistoryReloadIndex++;
     $.ajax({
         type: "POST",
-        url: '/request/api/v1.0/history',
+        url: "/request/api/v1.0/history",
         data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
             requestHistory = data.requestHistory;
-            var requestHistoryHtml = '<table class="table"> <tbody>';
+            var requestHistoryHtml = "<table class="table"> <tbody>";
             for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
-                requestHistoryHtml = requestHistoryHtml + '<tr> <td>' + requestHistory[i] + '</td> </tr>';
+                requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
             }
             document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
         },
