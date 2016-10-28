@@ -46,7 +46,7 @@ function previous_responses() {
 
 // replaces currently displayed responses with next 10 responses
 function next_responses() {
-    if (request_responses_index != request_responses.length - request_responses_index_shift) {
+    if (request_responses_index !== request_responses.length - request_responses_index_shift) {
         request_responses_index = request_responses_index + request_responses_index_shift;
         var request_responses_html = '<table class="table"> <tbody>';
         for (var i = request_responses_index; i < request_responses_index + request_responses_index_shift; i++) {
