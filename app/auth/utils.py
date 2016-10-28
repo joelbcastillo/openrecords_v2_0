@@ -162,10 +162,7 @@ def create_user(title=None, organization=None, phone_number=None, fax_number=Non
             email_validated = False
         else:
             email_validated = saml_user_data.get('nycExtEmailValidationFlag')[0]
-            if email_validated == 'TRUE':
-                email_validated = True
-            else:
-                email_validated = False
+            return bool(email_validated)
     else:
         email_validated = False
 
