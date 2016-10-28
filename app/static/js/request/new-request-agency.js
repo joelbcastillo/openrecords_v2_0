@@ -7,7 +7,7 @@ $(document).ready(function () {
 
     // Prevent user from entering a non numeric value into phone and fax field
     $("#phone").keypress(function(key) {
-        if (key.charCode != 0){
+        if (key.charCode !== 0){
             if (key.charCode < 48 || key.charCode > 57) {
                 key.preventDefault();
             }
@@ -63,7 +63,7 @@ $(document).ready(function () {
 
     var requiredFields = ["request-title","request-description", "request-agency_ein", "first-name","last-name","email",
         "phone","fax","address-line-1", "method-received","request-date", "city","zipcode"];
-    for (i = 0 ; i < requiredFields.length ; i++){
+    for (var i = 0 ; i < requiredFields.length ; i++){
         $("#" + requiredFields[i]).attr("data-parsley-required","");
     }
 
@@ -95,7 +95,7 @@ $(document).ready(function () {
     // Called when validation is used and checks that at least one form of contact was filled out
     $("#request-form").parsley().subscribe("parsley:form:validate", function (formInstance) {
         // Re-apply validators to fields in the event that they were removed from previous validation requests.
-        for (i = 0 ; i < requiredFields.length ; i++){
+        for (var i = 0 ; i < requiredFields.length ; i++){
            $("#" + requiredFields[i]).attr("data-parsley-required","");
         }
         // If address is filled out then make sure the city, state, and zipcode are filled.
