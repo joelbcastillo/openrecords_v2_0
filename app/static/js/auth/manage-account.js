@@ -8,12 +8,14 @@ $(document).ready(function () {
 
     // Prevent user from entering a non numeric value into phone and fax field
     $("#phone").keypress(function(key) {
-        if(key.charCode < 48 || key.charCode > 57)
+        if(key.charCode < 48 || key.charCode > 57) {
             key.preventDefault();
+        }
     });
     $("#fax").keypress(function(key) {
-        if(key.charCode < 48 || key.charCode > 57)
+        if(key.charCode < 48 || key.charCode > 57) {
             key.preventDefault();
+        }
     });
     // Apply parsley validation styles to the input forms for a new request.
 
@@ -29,7 +31,7 @@ $(document).ready(function () {
 
     // Loop through required fields and apply a data-parsley-required attribute to them
     var requiredFields = ["phone","fax","address-line-1", "city", "zipcode"];
-    for (i = 0 ; i < requiredFields.length ; i++){
+    for (var i = 0 ; i < requiredFields.length ; i++){
         $("#" + requiredFields[i]).attr("data-parsley-required","");
     }
 
