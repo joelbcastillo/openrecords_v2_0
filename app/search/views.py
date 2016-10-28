@@ -3,7 +3,7 @@ from flask import (
     jsonify,
     render_template,
 )
-from flask_login import current_user, login_user
+from flask_login import current_user
 from app import es
 from app.search import search
 from app.search.constants import (
