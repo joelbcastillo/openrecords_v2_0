@@ -54,7 +54,7 @@ $(document).ready(function () {
     // Checks that at least one form of contact was filled out in addition to the rest of the form.
     $("#request-form").parsley().subscribe("parsley:form:validate", function () {
         // Re-apply validators to fields in the event that they were removed from previous validation requests.
-        for (i = 0 ; i < requiredFields.length ; i++){
+        for (var i = 0 ; i < requiredFields.length ; i++){
            $("#" + requiredFields[i]).attr("data-parsley-required","");
         }
         // If address is filled out then make sure the city, state, and zipcode are filled.
