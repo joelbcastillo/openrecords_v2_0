@@ -76,7 +76,7 @@ def index():
 
     elif 'sls' in request.args:
         # TODO: Describe sls functionality
-        dscb = lambda: session.clear()
+        dscb = session.clear()
         req['get_data']['SAMLResponse'] = req['post_data']['SAMLResponse']
         url = auth.process_slo(delete_session_cb=dscb)
         errors = auth.get_errors()
