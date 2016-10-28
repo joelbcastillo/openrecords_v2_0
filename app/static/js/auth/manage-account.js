@@ -35,7 +35,7 @@ $(document).ready(function () {
 
     // Specify length requirement of certain fields
     $('#phone').attr('data-parsley-length','[14,14]');
-    $('#fax').attr('data-parsley-length','[14,14]');
+    $('#fax').attr("data-parsley-length","[14,14]");
     $('#zipcode').attr('data-parsley-length', '[5,5]');
 
     // Custom Validation Messages
