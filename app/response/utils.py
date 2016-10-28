@@ -462,7 +462,7 @@ def _process_response(request_id,
     """
     # create response object
     response = Responses(request_id=request_id,
-                         type=responses_type,
+                         _type=responses_type,
                          date_modified=datetime.utcnow(),
                          metadata_id=metadata_id,
                          privacy=privacy)

@@ -105,7 +105,7 @@ def create_request(title,
 
     # 5. Create Request
     request = Requests(
-        id=request_id,
+        _id=request_id,
         title=title,
         agency_ein=agency,
         description=description,
@@ -143,7 +143,7 @@ def create_request(title,
 
         # 8. Create response object
         response = Responses(request_id=request_id,
-                             type=FILE,
+                             _type=FILE,
                              date_modified=datetime.utcnow(),
                              metadata_id=metadata_id,
                              privacy=RELEASE_AND_PRIVATE)

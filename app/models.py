@@ -6,7 +6,6 @@ from datetime import datetime
 
 from flask import current_app
 from flask_login import UserMixin, AnonymousUserMixin
-from flask_login import current_user
 from sqlalchemy.dialects.postgresql import ARRAY, JSON
 
 from app import db, es
@@ -357,7 +356,7 @@ class Requests(db.Model):
 
     def __init__(
             self,
-            id,
+            _id,
             title,
             description,
             agency_ein,
@@ -369,7 +368,7 @@ class Requests(db.Model):
             current_status=None,
             agency_description=None
     ):
-        self.id = id
+        self.id = _id
         self.title = title
         self.description = description
         self.agency_ein = agency_ein
@@ -506,12 +505,12 @@ class Responses(db.Model):
 
     def __init__(self,
                  request_id,
-                 type,
+                 _type,
                  metadata_id,
                  privacy,
                  date_modified=datetime.utcnow()):
         self.request_id = request_id
-        self.type = type
+        self.type = _type
         self.metadata_id = metadata_id
         self.privacy = privacy
         self.date_modified = date_modified

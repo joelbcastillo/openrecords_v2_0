@@ -108,7 +108,7 @@ class RequestsFactory(object):
         create_object(file_meta)
         response = Responses(
             request_id=self.request.id,
-            type=response_type.FILE,
+            _type=response_type.FILE,
             date_modified=datetime.utcnow(),
             metadata_id=file_meta.id,
             privacy=PRIVATE,
