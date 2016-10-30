@@ -361,7 +361,7 @@ class Requests(db.Model):
 
     def __init__(
             self,
-            id,
+            id_,
             title,
             description,
             agency_ein,
@@ -373,7 +373,7 @@ class Requests(db.Model):
             current_status=None,
             agency_description=None
     ):
-        self.id = id
+        self.id = id_
         self.title = title
         self.description = description
         self.agency_ein = agency_ein
