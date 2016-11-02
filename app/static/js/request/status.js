@@ -49,9 +49,9 @@ $("#inputFax").mask("(999) 999-9999");
 $("#inputZip").mask("99999");
 
 // Looping through required fields and applying a data-parsley-required attribute to them
-var required_fields = ["inputEmail", "inputTelephone", "inputAddressOne", "inputAddressTwo", "inputCity", "inputZip", "inputState", "inputOrganization", "inputFax"];
-for (i = 0; i < required_fields.length; i++) {
-    $("#" + required_fields[i]).attr("data-parsley-required", "")
+var requiredFields = ["inputEmail", "inputTelephone", "inputAddressOne", "inputAddressTwo", "inputCity", "inputZip", "inputState", "inputOrganization", "inputFax"];
+for (i = 0; i < requiredFields.length; i++) {
+    $("#" + requiredFields[i]).attr("data-parsley-required", "")
 }
 
 //Apply parsley validation styles

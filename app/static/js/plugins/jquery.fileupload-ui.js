@@ -37,7 +37,7 @@
     $.blueimp.fileupload.prototype._specialOptions.push(
         'filesContainer',
         'uploadTemplateId',
-        'downloadTemplateId'
+        "downloadTemplateId"
     );
 
     // The UI version extends the file upload widget

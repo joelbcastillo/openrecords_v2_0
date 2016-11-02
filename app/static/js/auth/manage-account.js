@@ -29,7 +29,7 @@ $(document).ready(function () {
 
     // Loop through required fields and apply a data-parsley-required attribute to them
     var requiredFields = ["phone","fax","address-line-1", "city", "zipcode"];
-    for (i = 0 ; i < requiredFields.length ; i++){
+    for (var i = 0 ; i < requiredFields.length ; i++){
         $("#" + requiredFields[i]).attr("data-parsley-required","");
     }
 

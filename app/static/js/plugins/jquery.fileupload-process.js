@@ -33,7 +33,7 @@
 
     // The File Upload Processing plugin extends the fileupload widget
     // with file processing functionality:
-    $.widget('blueimp.fileupload', $.blueimp.fileupload, {
+    $.widget("blueimp.fileupload", $.blueimp.fileupload, {
 
         options: {
             // The list of processing actions:
