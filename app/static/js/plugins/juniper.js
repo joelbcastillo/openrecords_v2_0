@@ -70,7 +70,7 @@
         },
         _decamelize: function (str) {
             return str.replace(/(\w)([A-Z])/g, function (match, chr0, chr1) {
-                return (chr0 && chr1) ? chr0 + '-' + chr1.toLowerCase() : '';
+                return (chr0 && chr1) ? chr0 + "-" + chr1.toLowerCase() : '';
             }).toLowerCase();
         },
         _getElementData: function () {
@@ -176,7 +176,7 @@
     // globally accessable defaults
     $.fn[pluginName].defaults = {
         namespace: 'data-juniper',
-        trigger: 'keyup',
+        trigger: "keyup",
         errorClass: 'has-error parsley-error',
         controlGroupClass: '.control-group',
         parsleyDefaults: {

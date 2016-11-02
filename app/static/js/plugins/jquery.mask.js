@@ -40,10 +40,10 @@
 // https://github.com/umdjs/umd/blob/master/jqueryPluginCommonjs.js
 (function (factory, jQuery, Zepto) {
 
-    if (typeof define === 'function' && define.amd) {
+    if (typeof define === "function" && define.amd) {
         define(['jquery'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('jquery'));
+        module.exports = factory(require("jquery"));
     } else {
         factory(jQuery || Zepto);
     }
@@ -63,7 +63,7 @@
                         cSelStart = ctrl.selectionStart;
 
                     // IE Support
-                    if (dSel && navigator.appVersion.indexOf('MSIE 10') === -1) {
+                    if (dSel && navigator.appVersion.indexOf("MSIE 10") === -1) {
                         sel = dSel.createRange();
                         sel.moveStart('character', -p.val().length);
                         pos = sel.text.length;
@@ -97,7 +97,7 @@
             },
             events: function() {
                 el
-                .on('keydown.mask', function(e) {
+                .on("keydown.mask", function(e) {
                     el.data('mask-keycode', e.keyCode || e.which);
                 })
                 .on($.jMaskGlobals.useInput ? 'input.mask' : 'keyup.mask', p.behaviour)
@@ -171,7 +171,7 @@
             },
             val: function(v) {
                 var isInput = el.is('input'),
-                    method = isInput ? 'val' : 'text',
+                    method = isInput ? "val" : "text",
                     r;
 
                 if (arguments.length > 0) {

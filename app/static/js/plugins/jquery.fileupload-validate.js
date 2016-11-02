@@ -12,12 +12,12 @@
 /* global define, window */
 
 (function (factory) {
-    'use strict';
+    "use strict";
     if (typeof define === 'function' && define.amd) {
         // Register as an anonymous AMD module:
         define([
             'jquery',
-            './jquery.fileupload-process'
+            "./jquery.fileupload-process"
         ], factory);
     } else {
         // Browser globals:
@@ -37,7 +37,7 @@
             always: true,
             // Options taken from the global options map:
             acceptFileTypes: '@',
-            maxFileSize: '@',
+            maxFileSize: "@",
             minFileSize: '@',
             maxNumberOfFiles: '@',
             disabled: '@disableValidation'
@@ -68,9 +68,9 @@
             // Error and info messages:
             messages: {
                 maxNumberOfFiles: 'Maximum number of files exceeded',
-                acceptFileTypes: 'File type not allowed',
-                maxFileSize: 'File is too large',
-                minFileSize: 'File is too small'
+                acceptFileTypes: "File type not allowed",
+                maxFileSize: "File is too large",
+                minFileSize: "File is too small"
             }
         },
 

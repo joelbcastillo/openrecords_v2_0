@@ -10,14 +10,14 @@ $(".load-more-responses").hide();
 // loads initial responses into div
 $(document).ready(function () {
     $.ajax({
-        type: "POST",
+        type: "POST"
         url: '/request/api/v1.0/responses',
         data: {requestResponsesReloadIndex: requestResponsesReloadIndex},
         success: function (data) {
             requestResponses = data.requestResponses;
             var requestResponses_html = "<table class='table'> <tbody>";
-            for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-                requestResponses_html = requestResponses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+            for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++),
+                requestResponses_html = requestResponses_html + "<tr> <td>" + requestResponses[i] + "<button style='float: right;' type='button' class='btn btn-secondary btn-sm'>Edit</button> </td> </tr>";
             }
             document.getElementById("request-responses-table").innerHTML = requestResponses_html;
         },
