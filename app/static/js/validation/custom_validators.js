@@ -2,7 +2,7 @@
  * Created by atan on 9/27/16.
  */
 
-window.Parsley.addValidator('maxFileSize', {
+window.Parsley.addValidator("maxFileSize", {
   validateString: function(_value,
                            maxSize,
                            parsleyInstance)

@@ -4,7 +4,7 @@
 */
 ;(function ($, window, document, undefined) {
     // Create the defaults once
-    var pluginName = 'juniper';
+    var pluginName = "juniper";
 
     // The actual plugin constructor
     function Juniper (element, options) {
@@ -20,7 +20,7 @@
 
     Juniper.prototype = {
         _createDomApi: function () {
-            if (typeof $.fn.domApi === 'undefined') {
+            if (typeof $.fn.domApi === "undefined") {
                 // Zepto deserializeValue function
                 var deserializeValue = function(value) {
                     var num;
@@ -41,7 +41,7 @@
                 // Zepto camelize function
                 var camelize = function (str) {
                     return str.replace(/-+(.)?/g, function (match, chr) {
-                        return chr ? chr.toUpperCase() : '';
+                        return chr ? chr.toUpperCase() : "";
                     });
                 };
 
@@ -50,17 +50,17 @@
                 $.fn.domApi = function (namespace) {
                     var attribute,
                         obj = {},
-                        regex = new RegExp("^" + namespace, 'i');
+                        regex = new RegExp("^" + namespace, "i");
 
-                    if ('undefined' === typeof this[0]) {
+                    if ("undefined" === typeof this[0]) {
                         return {};
                     }
 
                     for (var i in this[0].attributes) {
                         attribute = this[0].attributes[i];
 
-                        if ('undefined' !== typeof attribute && null !== attribute && attribute.specified && regex.test(attribute.name)) {
-                            obj[camelize(attribute.name.replace(namespace, ''))] = deserializeValue(attribute.value);
+                        if ("undefined" !== typeof attribute && null !== attribute && attribute.specified && regex.test(attribute.name)) {
+                            obj[camelize(attribute.name.replace(namespace, ""))] = deserializeValue(attribute.value);
                         }
                     }
 
@@ -70,7 +70,7 @@
         },
         _decamelize: function (str) {
             return str.replace(/(\w)([A-Z])/g, function (match, chr0, chr1) {
-                return (chr0 && chr1) ? chr0 + "-" + chr1.toLowerCase() : '';
+                return (chr0 && chr1) ? chr0 + "-" + chr1.toLowerCase() : "";
             }).toLowerCase();
         },
         _getElementData: function () {
@@ -78,9 +78,9 @@
         },
         _getElements: function (editable) {
             this.$input = editable.input.$input,
-            this.$form = this.$input.parents('form'),
-            this.$editableErrorContainer = this.$form.find('.editable-error-block');
-            this.$formGroup = $('.form-group', this.$form);
+            this.$form = this.$input.parents("form"),
+            this.$editableErrorContainer = this.$form.find(".editable-error-block");
+            this.$formGroup = $(".form-group", this.$form);
         },
         _onElementShown: function (e, editable) {
             // if arguments.length !== 2 it is not an x-editable callback, but rather bootstrap
@@ -95,12 +95,12 @@
             this.editable = editable;
 
             // add parsley attributes to form
-            this.$form.attr('parsley-validate', true);
+            this.$form.attr("parsley-validate", true);
 
             // add parsley attributes to input
-            this.$input.attr('parsley-trigger', this.options.trigger);
+            this.$input.attr("parsley-trigger", this.options.trigger);
             $.each(this.validationData, function (key, value) {
-                if (typeof value !== 'string' && typeof value !== 'boolean') {
+                if (typeof value !== "string" && typeof value !== "boolean") {
                     try {
                         value = JSON.stringify(value);
                     } catch (e) {
@@ -111,7 +111,7 @@
                 // undo it
                 key = base._decamelize(key);
 
-                base.$input.attr('parsley-' + key, value);
+                base.$input.attr("parsley-" + key, value);
             });
 
             // initialize parsley on the form
@@ -139,7 +139,7 @@
         _validateElement: function () {
             // if there is an error, return and empty string.
             if (this.$formGroup.hasClass(this.options.errorClass)) {
-                return ' ';
+                return " ";
             }
         }
     };
@@ -156,9 +156,9 @@
         $.each(this.validationData, function () { count += 1; });
         if (count === 0) { return; }
 
-        this.$element.on('shown', $.proxy(this._onElementShown, this));
+        this.$element.on("shown", $.proxy(this._onElementShown, this));
 
-        this.$element.editable('option', 'validate', $.proxy(this._validateElement, this));
+        this.$element.editable("option", "validate", $.proxy(this._validateElement, this));
     };
 
 
@@ -166,8 +166,8 @@
     // preventing against multiple instantiations
     $.fn[pluginName] = function (options) {
         return this.each(function () {
-            if (!$.data(this, 'plugin_' + pluginName)) {
-                $.data(this, 'plugin_' + pluginName,
+            if (!$.data(this, "plugin_" + pluginName)) {
+                $.data(this, "plugin_" + pluginName,
                        new Juniper(this, options));
             }
         });
@@ -175,10 +175,10 @@
 
     // globally accessable defaults
     $.fn[pluginName].defaults = {
-        namespace: 'data-juniper',
+        namespace: "data-juniper",
         trigger: "keyup",
-        errorClass: 'has-error parsley-error',
-        controlGroupClass: '.control-group',
+        errorClass: "has-error parsley-error",
+        controlGroupClass: ".control-group",
         parsleyDefaults: {
             animate: true
         }

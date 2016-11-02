@@ -135,7 +135,7 @@
             if (options.processQueue && options.processQueue.length) {
                 this._transformProcessQueue(options);
                 if (this._processing === 0) {
-                    this._trigger('processstart');
+                    this._trigger("processstart");
                 }
                 $.each(data.files, function (index) {
                     var opts = index ? $.extend({}, options) : options,
@@ -152,7 +152,7 @@
                         .always(function () {
                             that._processing -= 1;
                             if (that._processing === 0) {
-                                that._trigger('processstop');
+                                that._trigger("processstop");
                             }
                         });
                 });
