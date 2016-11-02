@@ -88,7 +88,7 @@
                         } else { // IE
                             range = ctrl.createTextRange();
                             range.collapse(true);
-                            range.moveEnd('character', pos);
+                            range.moveEnd("character", pos);
                             range.moveStart('character', pos);
                             range.select();
                         }

@@ -513,12 +513,12 @@ class Responses(db.Model):
 
     def __init__(self,
                  request_id,
-                 type,
+                 type_,
                  metadata_id,
                  privacy,
                  date_modified=datetime.utcnow()):
         self.request_id = request_id
-        self.type = type
+        self.type = type_
         self.metadata_id = metadata_id
         self.privacy = privacy
         self.date_modified = date_modified

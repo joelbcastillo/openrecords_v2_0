@@ -33,19 +33,19 @@ class Celery(Command):
     def run(self):
         subprocess.call(['celery', 'worker', '-A', 'celery_worker.celery', '--loglevel=info'])
 
-
-def make_shell_context():
-    return dict(
-        app=app,
-        db=db,
-        Users=Users,
-        Agencies=Agencies,
-        Requests=Requests,
-        Responses=Responses,
-        Events=Events,
-        Reasons=Reasons,
-        Roles=Roles
-    )
+@classmethod
+    def make_shell_context():
+        return dict(
+            app=app,
+            db=db,
+            Users=Users,
+            Agencies=Agencies,
+            Requests=Requests,
+            Responses=Responses,
+            Events=Events,
+            Reasons=Reasons,
+            Roles=Roles
+        )
 
 
 manager.add_command("shell", Shell(make_context=make_shell_context))
