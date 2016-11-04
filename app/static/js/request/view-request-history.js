@@ -15,11 +15,11 @@ $(document).ready(function () {
         data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
             requestHistory = data.requestHistory;
-            var requestHistory_html = "<table class='table'> <tbody>";
+            var requestHistoryHtml = "<table class='table'> <tbody>";
             for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
-                requestHistory_html = requestHistory_html + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
+                requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
             }
-            document.getElementById("request-history-table").innerHTML = requestHistory_html;
+            document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
         },
         error: function (error) {
             console.log(error);
@@ -28,14 +28,14 @@ $(document).ready(function () {
 });
 
 // replaces currently displayed history events with previous 5 history events
-function previous_history() {
+function previousHistory() {
     if (requestHistoryIndex != 0) {
         requestHistoryIndex = requestHistoryIndex - requestHistoryIndexShift;
-        var requestHistory_html = "<table class='table'> <tbody>";
+        var requestHistoryHtml = "<table class='table'> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
-            requestHistory_html = requestHistory_html + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
+            requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
         }
-        document.getElementById("request-history-table").innerHTML = requestHistory_html;
+        document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
     }
     if (requestHistoryIndex == requestHistory.length - requestHistoryIndexShift) {
         $(".load-more-history").show();
@@ -48,11 +48,11 @@ function previous_history() {
 function next_history() {
     if (requestHistoryIndex != requestHistory.length - requestHistoryIndexShift) {
         requestHistoryIndex = requestHistoryIndex + requestHistoryIndexShift;
-        var requestHistory_html = "<table class='table'> <tbody>";
+        var requestHistoryHtml = "<table class='table'> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
-            requestHistory_html = requestHistory_html + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
+            requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
         }
-        document.getElementById("request-history-table").innerHTML = requestHistory_html;
+        document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
     }
     if (requestHistoryIndex == requestHistory.length - requestHistoryIndexShift) {
         $(".load-more-history").show();
@@ -70,11 +70,11 @@ function load_more_history() {
         data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
             requestHistory = data.requestHistory;
-            var requestHistory_html = "<table class='table'> <tbody>";
+            var requestHistoryHtml = "<table class='table'> <tbody>";
             for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
-                requestHistory_html = requestHistory_html + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
+                requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
             }
-            document.getElementById("request-history-table").innerHTML = requestHistory_html;
+            document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
         },
         error: function (error) {
             console.log(error);
