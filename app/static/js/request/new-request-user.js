@@ -3,7 +3,7 @@
  */
 $(document).ready(function () {
 
-    $("[data-toggle='popover']").popover();
+    $("[data-toggle=\"popover\"]").popover();
 
     // javascript to add tooltip popovers when selecting the title and description
     $("#request-title").attr({
