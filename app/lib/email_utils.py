@@ -29,7 +29,7 @@ def send_async_email(msg):
     mail.send(msg)
 
 
-def send_email(subject, to=list(), cc=list(), bcc=list(), template=None, email_content=None, **kwargs):
+def send_email(subject, to=None, cc=None, bcc=None, template=None, email_content=None, **kwargs):
     """
     Function that sends asynchronous emails for the application.
     Takes in arguments from the frontend.
@@ -43,6 +43,12 @@ def send_email(subject, to=list(), cc=list(), bcc=list(), template=None, email_c
     :param kwargs: Additional arguments the function may take in (ie: Message content)
     :return: Sends email asynchronously
     """
+
+    # Safe way to have defaults for list arguments
+    to = to or list()
+    cc = cc or list()
+    bcc = bcc or list()
+
     assert to or cc or bcc
     msg = Message(current_app.config['MAIL_SUBJECT_PREFIX'] + ' ' + subject,
                   sender=current_app.config['MAIL_SENDER'], recipients=to, cc=cc, bcc=bcc)
