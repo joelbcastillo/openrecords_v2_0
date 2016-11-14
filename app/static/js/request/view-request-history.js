@@ -1,8 +1,8 @@
 // initialize variables
-var request_history_reload_index = 0; // index to keep track of number of events loaded, load 50 more events for every increment of 1
-var request_history_index = 0; // index to keep track of which interval of events are shown
-var request_history; // initialize variable to store list of events
-var request_history_index_shift = 5; // index number used to increment or decrement request_history_index
+var requestHistoryReloadIndex = 0; // index to keep track of number of events loaded, load 50 more events for every increment of 1
+var requestHistoryIndex = 0; // index to keep track of which interval of events are shown
+var requestHistory; // initialize variable to store list of events
+var requestHistoryIndex_shift = 5; // index number used to increment or decrement requestHistoryIndex
 
 // hide load-more-history div
 $(".load-more-history").hide();
@@ -12,14 +12,14 @@ $(document).ready(function () {
     $.ajax({
         type: "POST",
         url: '/request/api/v1.0/history',
-        data: {request_history_reload_index: request_history_reload_index},
+        data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
-            request_history = data.request_history;
-            var request_history_html = '<table class="table"> <tbody>';
-            for (var i = request_history_index; i < request_history_index + request_history_index_shift; i++) {
-                request_history_html = request_history_html + '<tr> <td>' + request_history[i] + '</td> </tr>';
+            requestHistory = data.requestHistory;
+            var requestHistory_html = '<table class="table"> <tbody>';
+            for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndex_shift; i++) {
+                requestHistory_html = requestHistory_html + '<tr> <td>' + requestHistory[i] + '</td> </tr>';
             }
-            document.getElementById("request-history-table").innerHTML = request_history_html;
+            document.getElementById("request-history-table").innerHTML = requestHistory_html;
         },
         error: function (error) {
             console.log(error);
@@ -29,15 +29,15 @@ $(document).ready(function () {
 
 // replaces currently displayed history events with previous 5 history events
 function previous_history() {
-    if (request_history_index != 0) {
-        request_history_index = request_history_index - request_history_index_shift;
-        var request_history_html = '<table class="table"> <tbody>';
-        for (var i = request_history_index; i < request_history_index + request_history_index_shift; i++) {
-            request_history_html = request_history_html + '<tr> <td>' + request_history[i] + '</td> </tr>';
+    if (requestHistoryIndex != 0) {
+        requestHistoryIndex = requestHistoryIndex - requestHistoryIndex_shift;
+        var requestHistory_html = '<table class="table"> <tbody>';
+        for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndex_shift; i++) {
+            requestHistory_html = requestHistory_html + '<tr> <td>' + requestHistory[i] + '</td> </tr>';
         }
-        document.getElementById("request-history-table").innerHTML = request_history_html;
+        document.getElementById("request-history-table").innerHTML = requestHistory_html;
     }
-    if (request_history_index == request_history.length - request_history_index_shift) {
+    if (requestHistoryIndex == requestHistory.length - requestHistoryIndex_shift) {
         $(".load-more-history").show();
     } else {
         $(".load-more-history").hide();
@@ -46,35 +46,35 @@ function previous_history() {
 
 // replaces currently displayed history events with next 5 history events
 function next_history() {
-    if (request_history_index != request_history.length - request_history_index_shift) {
-        request_history_index = request_history_index + request_history_index_shift;
-        var request_history_html = '<table class="table"> <tbody>';
-        for (var i = request_history_index; i < request_history_index + request_history_index_shift; i++) {
-            request_history_html = request_history_html + '<tr> <td>' + request_history[i] + '</td> </tr>';
+    if (requestHistoryIndex != requestHistory.length - requestHistoryIndex_shift) {
+        requestHistoryIndex = requestHistoryIndex + requestHistoryIndex_shift;
+        var requestHistory_html = '<table class="table"> <tbody>';
+        for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndex_shift; i++) {
+            requestHistory_html = requestHistory_html + '<tr> <td>' + requestHistory[i] + '</td> </tr>';
         }
-        document.getElementById("request-history-table").innerHTML = request_history_html;
+        document.getElementById("request-history-table").innerHTML = requestHistory_html;
     }
-    if (request_history_index == request_history.length - request_history_index_shift) {
+    if (requestHistoryIndex == requestHistory.length - requestHistoryIndex_shift) {
         $(".load-more-history").show();
     } else {
         $(".load-more-history").hide();
     }
 }
 
-// loads 50 more history events into request_history array
+// loads 50 more history events into requestHistory array
 function load_more_history() {
-    request_history_reload_index++;
+    requestHistoryReloadIndex++;
     $.ajax({
         type: "POST",
         url: '/request/api/v1.0/history',
-        data: {request_history_reload_index: request_history_reload_index},
+        data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
-            request_history = data.request_history;
-            var request_history_html = '<table class="table"> <tbody>';
-            for (var i = request_history_index; i < request_history_index + request_history_index_shift; i++) {
-                request_history_html = request_history_html + '<tr> <td>' + request_history[i] + '</td> </tr>';
+            requestHistory = data.requestHistory;
+            var requestHistory_html = '<table class="table"> <tbody>';
+            for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndex_shift; i++) {
+                requestHistory_html = requestHistory_html + '<tr> <td>' + requestHistory[i] + '</td> </tr>';
             }
-            document.getElementById("request-history-table").innerHTML = request_history_html;
+            document.getElementById("request-history-table").innerHTML = requestHistory_html;
         },
         error: function (error) {
             console.log(error);
