@@ -54,7 +54,7 @@ def update_object(data, obj_type, obj_id):
 
     if obj:
         for attr, value in data.items():
-            if type(value) == dict:
+            if isinstance(value) == dict:
                 # update json values
                 for key, val in value.items():
                     getattr(obj, attr)[key] = val
