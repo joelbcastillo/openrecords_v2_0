@@ -28,7 +28,7 @@ $(document).ready(function () {
 });
 
 // replaces currently displayed responses with previous 10 responses
-function previous_responses() {
+function previousResponses() {
     if (requestResponsesIndex != 0) {
         requestResponsesIndex = requestResponsesIndex - requestResponsesIndexShift;
         var requestResponsesHtml = "<table class='table'> <tbody>";
@@ -45,7 +45,7 @@ function previous_responses() {
 }
 
 // replaces currently displayed responses with next 10 responses
-function next_responses() {
+function nextResponses() {
     if (requestResponsesIndex !== requestResponses.length - requestResponsesIndexShift) {
         requestResponsesIndex = requestResponsesIndex + requestResponsesIndexShift;
         var requestResponsesHtml = "<table class='table'> <tbody>";
@@ -62,7 +62,7 @@ function next_responses() {
 }
 
 // loads 50 more responses into requestResponses array
-function load_more_responses() {
+function loadMoreResponses() {
     requestResponsesReloadIndex++;
     $.ajax({
         type: "POST",
