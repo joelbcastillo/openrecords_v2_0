@@ -90,7 +90,7 @@ def profile(length=25, profile_dir=None):
 def deploy():
     """Run deployment tasks."""
     from flask_migrate import upgrade
-    from app.models import Roles, Agencies
+    from app.models import Agencies
 
     # migrate database to latest revision
     upgrade()
