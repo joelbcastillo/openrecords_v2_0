@@ -1,10 +1,10 @@
 //  Switching to Modals
 $("#requesterModal").on("shown.bs.modal", function () {
-    $("#requesterInput").focus()
+    $("#requesterInput").focus();
 });
 
 $("#agencyModal").on("shown.bs.modal", function () {
-    $("#agencyInput").focus()
+    $("#agencyInput").focus();
 });
 
 $(document).ready(function() {
@@ -50,8 +50,8 @@ $("#inputZip").mask("99999");
 
 // Looping through required fields and applying a data-parsley-required attribute to them
 var requiredFields = ["inputEmail", "inputTelephone", "inputAddressOne", "inputAddressTwo", "inputCity", "inputZip", "inputState", "inputOrganization", "inputFax"];
-for (i = 0; i < requiredFields.length; i++) {
-    $("#" + requiredFields[i]).attr("data-parsley-required", "")
+for (var i = 0; i < requiredFields.length; i++) {
+    $("#" + requiredFields[i]).attr("data-parsley-required", "");
 }
 
 //Apply parsley validation styles

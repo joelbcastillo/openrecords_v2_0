@@ -78,10 +78,10 @@ def get_request_responses():
 
     :return: json object containing list of 50 response objects from request
     """
-    request_responses_index = int(flask_request.form['request_responses_reload_index'])
-    request_responses_index_end = (request_responses_index + 1) * 50 + 1
+    requestResponsesIndex = int(flask_request.form['request_responses_reload_index'])
+    requestResponsesIndex_end = (requestResponsesIndex + 1) * 50 + 1
     request_responses = []
     # TODO: Query responses table.
-    for i in range(1, request_responses_index_end):
+    for i in range(1, requestResponsesIndex_end):
         request_responses.append(str(i))
     return jsonify(request_responses=request_responses)

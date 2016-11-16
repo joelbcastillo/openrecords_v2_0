@@ -45,7 +45,7 @@ function previousHistory() {
 }
 
 // replaces currently displayed history events with next 5 history events
-function next_history() {
+function nextHistory() {
     if (requestHistoryIndex != requestHistory.length - requestHistoryIndexShift) {
         requestHistoryIndex = requestHistoryIndex + requestHistoryIndexShift;
         var requestHistoryHtml = "<table class='table'> <tbody>";
@@ -62,7 +62,7 @@ function next_history() {
 }
 
 // loads 50 more history events into requestHistory array
-function load_more_history() {
+function loadMoreHistory() {
     requestHistoryReloadIndex++;
     $.ajax({
         type: "POST",

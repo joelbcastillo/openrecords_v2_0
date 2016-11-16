@@ -11,15 +11,15 @@ $(".load-more-responses").hide();
 $(document).ready(function () {
     $.ajax({
         type: "POST",
-        url: '/request/api/v1.0/responses',
+        url: "/request/api/v1.0/responses",
         data: {requestResponsesReloadIndex: requestResponsesReloadIndex},
         success: function (data) {
             requestResponses = data.requestResponses;
-            var requestResponsesHtml = '<table class="table"> <tbody>';
+            var requestResponsesHtml = "<table class='table'> <tbody>";
             for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-                requestResponses_html = requestResponses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+                requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
             }
-            document.getElementById("request-responses-table").innerHTML = requestResponses_html;
+            document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
         },
         error: function (error) {
             console.log(error);
@@ -31,11 +31,11 @@ $(document).ready(function () {
 function previousResponses() {
     if (requestResponsesIndex != 0) {
         requestResponsesIndex = requestResponsesIndex - requestResponsesIndexShift;
-        var requestResponses_html = '<table class="table"> <tbody>';
+        var requestResponsesHtml = "<table class='table'> <tbody>";
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-            requestResponses_html = requestResponses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+            requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
         }
-        document.getElementById("request-responses-table").innerHTML = requestResponses_html;
+        document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     }
     if (requestResponsesIndex == requestResponses.length - requestResponsesIndexShift) {
         $(".load-more-responses").show();
@@ -45,14 +45,14 @@ function previousResponses() {
 }
 
 // replaces currently displayed responses with next 10 responses
-function next_responses() {
+function nextResponses() {
     if (requestResponsesIndex != requestResponses.length - requestResponsesIndexShift) {
         requestResponsesIndex = requestResponsesIndex + requestResponsesIndexShift;
-        var requestResponses_html = '<table class="table"> <tbody>';
+        var requestResponsesHtml = '<table class="table"> <tbody>';
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-            requestResponses_html = requestResponses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+            requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
         }
-        document.getElementById("request-responses-table").innerHTML = requestResponses_html;
+        document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     }
     if (requestResponsesIndex == requestResponses.length - requestResponsesIndexShift) {
         $(".load-more-responses").show();
@@ -62,7 +62,7 @@ function next_responses() {
 }
 
 // loads 50 more responses into requestResponses array
-function load_more_responses() {
+function loadMoreResponses() {
     requestResponsesReloadIndex++;
     $.ajax({
         type: "POST",
@@ -70,11 +70,11 @@ function load_more_responses() {
         data: {requestResponsesReloadIndex: requestResponsesReloadIndex},
         success: function (data) {
             requestResponses = data.requestResponses;
-            var requestResponses_html = '<table class="table"> <tbody>';
+            var requestResponsesHtml = '<table class="table"> <tbody>';
             for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-                requestResponses_html = requestResponses_html + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+                requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
             }
-            document.getElementById("request-responses-table").innerHTML = requestResponses_html;
+            document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
         },
         error: function (error) {
             console.log(error);
