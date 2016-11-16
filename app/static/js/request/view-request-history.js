@@ -29,7 +29,7 @@ $(document).ready(function () {
 
 // replaces currently displayed history events with previous 5 history events
 function previousHistory() {
-    if (requestHistoryIndex != 0) {
+    if (requestHistoryIndex !== 0) {
         requestHistoryIndex = requestHistoryIndex - requestHistoryIndexShift;
         var requestHistoryHtml = "<table class='table'> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
@@ -46,7 +46,7 @@ function previousHistory() {
 
 // replaces currently displayed history events with next 5 history events
 function nextHistory() {
-    if (requestHistoryIndex != requestHistory.length - requestHistoryIndexShift) {
+    if (requestHistoryIndex !== requestHistory.length - requestHistoryIndexShift) {
         requestHistoryIndex = requestHistoryIndex + requestHistoryIndexShift;
         var requestHistoryHtml = "<table class='table'> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
