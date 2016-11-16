@@ -29,7 +29,7 @@ $(document).ready(function () {
 
 // replaces currently displayed responses with previous 10 responses
 function previousResponses() {
-    if (requestResponsesIndex != 0) {
+    if (requestResponsesIndex !== 0) {
         requestResponsesIndex = requestResponsesIndex - requestResponsesIndexShift;
         var requestResponsesHtml = "<table class='table'> <tbody>";
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
