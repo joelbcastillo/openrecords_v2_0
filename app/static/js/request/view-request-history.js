@@ -29,7 +29,7 @@ $(document).ready(function () {
 
 // replaces currently displayed history events with previous 5 history events
 function previousHistory() {
-    if (requestHistoryIndex != 0) {
+    if (requestHistoryIndex !== 0) {
         requestHistoryIndex = requestHistoryIndex - requestHistoryIndexShift;
         var requestHistoryHtml = "<table class='table'> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
@@ -37,7 +37,7 @@ function previousHistory() {
         }
         document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
     }
-    if (requestHistoryIndex == requestHistory.length - requestHistoryIndexShift) {
+    if (requestHistoryIndex === requestHistory.length - requestHistoryIndexShift) {
         $(".load-more-history").show();
     } else {
         $(".load-more-history").hide();

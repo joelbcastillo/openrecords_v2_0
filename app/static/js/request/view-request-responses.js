@@ -54,7 +54,7 @@ function nextResponses() {
         }
         document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     }
-    if (requestResponsesIndex == requestResponses.length - requestResponsesIndexShift) {
+    if (requestResponsesIndex === requestResponses.length - requestResponsesIndexShift) {
         $(".load-more-responses").show();
     } else {
         $(".load-more-responses").hide();

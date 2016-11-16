@@ -6,14 +6,14 @@ $(document).ready(function () {
 
     // Prevent user from entering a non numeric value into phone and fax field
     $("#phone").keypress(function(key) {
-        if (key.charCode != 0){
+        if (key.charCode !== 0){
             if (key.charCode < 48 || key.charCode > 57) {
                 key.preventDefault();
             }
         }
     });
     $("#fax").keypress(function(key) {
-        if (key.charCode != 0){
+        if (key.charCode !== 0){
             if (key.charCode < 48 || key.charCode > 57) {
                 key.preventDefault();
             }
