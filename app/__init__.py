@@ -1,3 +1,5 @@
+from datetime import date
+
 import redis
 from business_calendar import Calendar, MO, TU, WE, TH, FR
 from celery import Celery
@@ -11,6 +13,7 @@ from flask_recaptcha import ReCaptcha
 from flask_sqlalchemy import SQLAlchemy
 from simplekv.decorator import PrefixDecorator
 from simplekv.memory.redisstore import RedisStore
+from app.lib import NYCHolidays, jinja_filters
 
 from config import config, Config
 
@@ -24,24 +27,15 @@ prefixed_store = PrefixDecorator('session_', store)
 celery = Celery(__name__, broker=Config.CELERY_BROKER_URL)  # db=0
 
 upload_redis = redis.StrictRedis(db=2)
+email_redis = redis.StrictRedis(db=3)
 
 mail = Mail()
 
+holidays = NYCHolidays(years=[year for year in range(date.today().year, date.today().year + 5)])
+
 calendar = Calendar(
     workdays=[MO, TU, WE, TH, FR],
-    holidays=[
-        '2016-01-01',
-        '2016-01-18',
-        '2016-02-15',
-        '2016-05-30',
-        '2016-07-4',
-        '2016-09-5',
-        '2016-10-10',
-        '2016-11-08',
-        '2016-11-11',
-        '2016-11-24',
-        '2016-12-26'
-    ]
+    holidays=[str(key) for key in holidays.keys()]
 )
 
 
@@ -57,6 +51,9 @@ def create_app(config_name):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
+
+    app.jinja_env.filters['format_response_type'] = jinja_filters.format_response_type
+    app.jinja_env.filters['format_response_privacy'] = jinja_filters.format_response_privacy
 
     recaptcha.init_app(app)
     bootstrap.init_app(app)
@@ -89,6 +86,9 @@ def create_app(config_name):
 
     from .upload import upload
     app.register_blueprint(upload, url_prefix="/upload")
+
+    from .user import user
+    app.register_blueprint(user, url_prefix="/user")
 
     from .search import search
     app.register_blueprint(search, url_prefix="/search")

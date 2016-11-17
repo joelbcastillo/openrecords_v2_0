@@ -2,13 +2,16 @@ import os
 import uuid
 import random
 from itertools import product
-from string import ascii_lowercase, digits
+from string import (
+    ascii_lowercase,
+    ascii_letters,
+    digits,
+)
 from datetime import datetime
-
 from flask import current_app
+from tests.lib.constants import NON_ANON_USER_GUID_LEN
 from app.constants import (
-    ACKNOWLEDGEMENT_DAYS_DUE,
-    response_type,
+    ACKNOWLEDGMENT_DAYS_DUE,
     user_type_auth,
     user_type_request,
     submission_methods,
@@ -16,10 +19,11 @@ from app.constants import (
 )
 from app.constants.response_privacy import PRIVATE
 from app.constants.role_name import PUBLIC_REQUESTER
+from app.lib.utils import get_file_hash
 from app.models import (
     Requests,
-    Responses,
     Files,
+    Notes,
     Users,
     Agencies,
     UserRequests,
@@ -43,7 +47,12 @@ class RequestsFactory(object):
 
     filepaths = []
 
-    def __init__(self, request_id):
+    def __init__(self, request_id=None, clean=True):
+        """
+        :param request_id: request FOIL id
+        :param clean: reset data?
+        """
+        self.clean = clean
         date_created = datetime.utcnow()
         date_submitted = get_following_date(date_created)
         agency_ein = 2
@@ -56,9 +65,9 @@ class RequestsFactory(object):
             date_created=date_created,
             date_submitted=date_submitted,
             due_date=get_due_date(date_submitted,
-                                  ACKNOWLEDGEMENT_DAYS_DUE),
+                                  ACKNOWLEDGMENT_DAYS_DUE),
             submission=submission_methods.DIRECT_INPUT,
-            current_status=request_status.OPEN)
+            status=request_status.OPEN)
         create_object(self.request)
         self.requester = Users(
             guid=generate_user_guid(user_type_auth.PUBLIC_USER_NYC_ID),
@@ -83,6 +92,7 @@ class RequestsFactory(object):
     def add_file(self,
                  filepath=None,
                  mime_type='text/plain',
+                 contents=None,
                  title=None):
         if filepath is None:
             filename = str(uuid.uuid4())
@@ -97,28 +107,35 @@ class RequestsFactory(object):
         # create an empty file if the specified path does not exist
         if not os.path.exists(filepath):
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            open(filepath, 'w').close()
+            with open(filepath, 'w') as fp:
+                fp.write(contents or
+                         ''.join(random.choice(ascii_letters)
+                                 for _ in range(random.randrange(100, 500))))
 
-        file_meta = Files(
-            name=filename,
-            mime_type=mime_type,
-            title=title or filename,
-            size=os.path.getsize(filepath)
-        )
-        create_object(file_meta)
-        response = Responses(
-            request_id=self.request.id,
-            _type=response_type.FILE,
-            date_modified=datetime.utcnow(),
-            metadata_id=file_meta.id,
-            privacy=PRIVATE,
+        response = Files(
+            self.request.id,
+            PRIVATE,
+            title or filename,
+            filename,
+            mime_type,
+            os.path.getsize(filepath),
+            get_file_hash(filepath)
         )
         # TODO: add Events FILE_ADDED
         create_object(response)
         return response
 
-    def add_note(self):
-        pass
+    def add_note(self, content=None):
+        response = Notes(
+            self.request.id,
+            PRIVATE,
+            content=content or ''.join(
+                random.choice(ascii_letters)
+                for _ in range(random.randrange(10, 50)))
+        )
+        # TODO: add Events NOTE_ADDED
+        create_object(response)
+        return response
 
     def __del__(self):
         """
@@ -126,9 +143,10 @@ class RequestsFactory(object):
         - remove any files created by this factory
         - ...
         """
-        for path in self.filepaths:
-            if os.path.exists(path):
-                os.remove(path)
+        if self.clean:
+            for path in self.filepaths:
+                if os.path.exists(path):
+                    os.remove(path)
 
 
 def create_user(auth_type=user_type_auth.PUBLIC_USER_NYC_ID):
@@ -161,9 +179,8 @@ def generate_user_guid(auth_type):
     if auth_type == user_type_auth.ANONYMOUS_USER:
         return generate_guid_anon()
     else:
-        non_anon_guid_length = 6  # TODO: make constant, is valid?
         return ''.join(random.choice(ascii_lowercase + digits)
-                       for _ in range(non_anon_guid_length))
+                       for _ in range(NON_ANON_USER_GUID_LEN))
 
 
 def create_requests_search_set(requester, other_requester):
@@ -183,9 +200,9 @@ def create_requests_search_set(requester, other_requester):
             date_created=date_created,
             date_submitted=date_submitted,
             due_date=get_due_date(date_submitted,
-                                  ACKNOWLEDGEMENT_DAYS_DUE),
+                                  ACKNOWLEDGMENT_DAYS_DUE),
             submission=submission_methods.DIRECT_INPUT,
-            current_status=request_status.OPEN,
+            status=request_status.OPEN,
             privacy={
                 'title': bool(title_private),
                 'agency_description': bool(agency_desc_private)

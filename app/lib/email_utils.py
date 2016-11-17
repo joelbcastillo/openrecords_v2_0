@@ -26,7 +26,11 @@ from app.constants.user_type_auth import AGENCY_USER
 
 @celery.task
 def send_async_email(msg):
-    mail.send(msg)
+    try:
+        mail.send(msg)
+    except Exception as e:
+        print("Error sending email:", e)
+        # TODO: we ought to email ourselves
 
 
 def send_email(subject, to=None, cc=None, bcc=None, template=None, email_content=None, **kwargs):
@@ -41,7 +45,6 @@ def send_email(subject, to=None, cc=None, bcc=None, template=None, email_content
     :param template: HTML and TXT template of the email content
     :param email_content: string of HTML email content that can be used as a message template
     :param kwargs: Additional arguments the function may take in (ie: Message content)
-    :return: Sends email asynchronously
     """
 
     # Safe way to have defaults for list arguments
@@ -66,7 +69,7 @@ def get_agencies_emails(request_id):
     Gets a list of the agencies emails by querying UserRequests by request_id and request_user_type
 
     :param request_id: FOIL request ID to query UserRequests
-    :return: Returns a list of agency emails or ['agency@email.com'] (for testing)
+    :return: list of agency emails or ['agency@email.com'] (for testing)
     """
     # Get list of agency users on the request
     agency_user_guids = UserRequests.query.with_entities(UserRequests.user_guid).filter_by(request_id=request_id,

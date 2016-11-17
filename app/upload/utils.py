@@ -12,19 +12,13 @@ from app import (
     celery,
     upload_redis as redis
 )
-from app.constants import (
-    response_type,
-    UPDATED_FILE_DIRNAME,
-)
+from app.constants import UPDATED_FILE_DIRNAME
 from app.upload.constants import (
     ALLOWED_MIMETYPES,
     MAX_CHUNKSIZE,
     upload_status,
 )
-from app.models import (
-    Responses,
-    Files
-)
+from app.models import Files
 
 
 def parse_content_range(header):
@@ -56,31 +50,20 @@ def upload_exists(request_id, filename):
     :param filename: the name of the uploaded file
     :return: whether the file exists or not
     """
-    file_ids = [
-        id_[0] for id_ in
-        Responses.query.with_entities(
-            Responses.metadata_id
-        ).filter_by(
-            request_id=request_id, type=response_type.FILE
+    existing_filenames = [
+        file_.name for file_ in
+        Files.query.filter_by(
+            request_id=request_id,
+            deleted=False,
         ).all()
     ]
-    if file_ids:
-        existing_filenames = [
-            name[0] for name in
-            Files.query.with_entities(
-                Files.name
-            ).filter(
-                Files.id.in_(file_ids)
-            ).all()
-        ]
-        return filename in existing_filenames
-    else:
-        return False
+    return filename in existing_filenames
 
 
 def is_valid_file_type(obj):
     """
     Validates the mime type of a file.
+    Content type header is ignored.
 
     :param obj: the file storage object to check
     :type obj: werkzeug.datastructures.FileStorage
@@ -88,22 +71,18 @@ def is_valid_file_type(obj):
     :return: (whether the mime type is allowed or not,
         the mime type)
     """
-    # 1. Check content type header
-    mime_type = obj.content_type
+    buffer = obj.stream.read(MAX_CHUNKSIZE)
+    # 1. Check using default
+    mime_type = magic.from_buffer(buffer, mime=True)
     is_valid = mime_type in ALLOWED_MIMETYPES
-    if is_valid:
-        buffer = obj.stream.read(MAX_CHUNKSIZE)
-        # 2. Check from file buffer
-        mime_type = magic.from_buffer(buffer, mime=True)
+    if is_valid and current_app.config['MAGIC_FILE'] != '':
+        # 3. Check using custom
+        m = magic.Magic(
+            magic_file=current_app.config['MAGIC_FILE'],
+            mime=True)
+        m.from_buffer(buffer)
         is_valid = mime_type in ALLOWED_MIMETYPES
-        if is_valid and current_app.config['MAGIC_FILE'] != '':
-            # 3. Check using custom mime database file
-            m = magic.Magic(
-                magic_file=current_app.config['MAGIC_FILE'],
-                mime=True)
-            m.from_buffer(buffer)
-            is_valid = mime_type in ALLOWED_MIMETYPES
-        obj.stream.seek(0)
+    obj.stream.seek(0)
     return is_valid, mime_type
 
 

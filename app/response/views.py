@@ -3,73 +3,96 @@
 
    :synopsis: Handles the response URL endpoints for the OpenRecords application
 """
-
-import json
+import os
+from datetime import datetime
+from urllib.request import urlopen
 
 from flask import (
-    render_template,
     flash,
     request as flask_request,
     url_for,
     redirect,
     jsonify,
+    current_app,
+    send_from_directory,
 )
 from flask_login import current_user
-from flask_wtf import Form
-from wtforms import StringField, SubmitField
 
 from app.constants.response_privacy import PRIVATE
-from app.models import Requests, Responses
+from app.constants.response_type import FILE
+from app.lib.date_utils import get_holidays_date_list
+from app.lib.db_utils import delete_object
 from app.response import response
-from app.constants import response_type
+from app.models import (
+    Requests,
+    Responses,
+    ResponseTokens,
+    UserRequests,
+    Files,
+    Notes,
+    Instructions
+)
 from app.response.utils import (
     add_note,
     add_file,
+    add_link,
     add_extension,
+    add_acknowledgment,
+    add_instruction,
     process_upload_data,
     send_file_email,
     process_privacy_options,
     process_email_template_request,
-    RespFileEditor
+    RespFileEditor,
+    RespNoteEditor,
+    RespInstructionsEditor
 )
 
 
-# simple form used to test functionality of storing a note to responses table
-class NoteForm(Form):
-    note = StringField('Add Note')
-    submit = SubmitField('Submit')
-
-
-@response.route('/note/<request_id>', methods=['GET', 'POST'])
+@response.route('/note/<request_id>', methods=['POST'])
 def response_note(request_id):
     """
     Note response endpoint that takes in the content of a note for a specific request from the frontend.
-    Passes data into helper function in response.utils to update changes into database.
+    Check if required data from form is retrieved.
+    Flash error message if required form data is missing.
+    Call add_link to process the extension form data.
 
-    :param request_id: Specific FOIL request ID for the note
-    :return: Message indicating note has been submitted
+    :param request_id: FOIL request ID for the specific note.
+    :return: redirect to view request page
     """
+    note_data = flask_request.form
+
+    required_fields = ['content',
+                       'email-note-summary',
+                       'privacy']
+
+    # TODO: Get copy from business, insert sentry issue key in message
+    # Error handling to check if retrieved elements exist. Flash error message if elements does not exist.
+    for field in required_fields:
+        if note_data.get(field) is None:
+            flash('Uh Oh, it looks like the instruction {} is missing! '
+                  'This is probably NOT your fault.'.format(field), category='danger')
+            return redirect(url_for('request.view', request_id=request_id))
+
     current_request = Requests.query.filter_by(id=request_id).first()
-    form = NoteForm()
-    if flask_request.method == 'POST':
-        add_note(request_id=current_request.id,
-                 content=form.note.data)
-        flash('Note has been submitted')
-    return render_template('request/view_note.html',
-                           request=current_request,
-                           form=form,
-                           privacy=current_request.privacy)
+    add_note(current_request.id,
+             note_data['content'],
+             note_data['email-note-summary'],
+             note_data['privacy'])
+    return redirect(url_for('request.view', request_id=request_id))
 
 
 @response.route('/file/<request_id>', methods=['POST'])
 def response_file(request_id):
     """
     File response endpoint that takes in the metadata of a file for a specific request from the frontend.
-    Calls process_upload_data to process the uploaded file form data.
-    Passes data into helper function in response.utils to update changes into database.
+    Call process_upload_data to process the uploaded file form data.
+    Pass data into helper function in response.utils to update changes into database.
+    Send email notification to requester and bcc agency users if privacy is release.
+    Render specific tempalte and send email notification bcc agency users if privacy is private.
 
-    :param request_id: Specific FOIL request ID for the file
-    :return: redirects to view request page as of right now (IN DEVELOPMENT)
+    :param request_id: FOIL request ID for the specific file.
+    :return: redirect to view request page
     """
     current_request = Requests.query.filter_by(id=request_id).first()
     files = process_upload_data(flask_request.form)
@@ -85,7 +108,7 @@ def response_file(request_id):
             send_file_email(request_id,
                             privacy,
                             files,
-                            email_content=None,
+                            None,
                             email_template='email_templates/email_private_file_upload.html')
         else:
             send_file_email(request_id,
@@ -95,21 +118,44 @@ def response_file(request_id):
     return redirect(url_for('request.view', request_id=request_id))
 
 
+@response.route('/acknowledgment/<request_id>', methods=['POST'])
+def response_acknowledgment(request_id):
+    required_fields = ['date',
+                       'days',
+                       'email-summary']
+
+    for field in required_fields:
+        if flask_request.form.get(field) is None:
+            flash('Uh Oh, it looks like the acknowledgment {} is missing! '
+                  'This is probably NOT your fault.'.format(field), category='danger')
+            return redirect(url_for('request.view', request_id=request_id))
+
+    add_acknowledgment(request_id,
+                       flask_request.form['info'].strip() or None,
+                       flask_request.form['days'],
+                       flask_request.form['date'],
+                       flask_request.form['email-summary'])
+    return redirect(url_for('request.view', request_id=request_id))
+
+
 @response.route('/extension/<request_id>', methods=['POST'])
 def response_extension(request_id):
     """
     Extension response endpoint that takes in the metadata of an extension for a specific request from the frontend.
-    Calls add_extension to process the extension form data.
+    Check if required data from form is retrieved.
+    Flash error message if required form data is missing.
+    Call add_extension to process the extension form data.
 
-    :param request_id: Specific FOIL request ID for the extension
-    :return: redirects to view request page as of right now (IN DEVELOPMENT)
+    :param request_id: FOIL request ID for the specific extension.
+
+    :return: redirect to view request page
     """
     extension_data = flask_request.form
 
     required_fields = ['length',
                        'reason',
                        'due-date',
-                       'email-extend-content']
+                       'email-extension-summary']
 
     # TODO: Get copy from business, insert sentry issue key in message
     # Error handling to check if retrieved elements exist. Flash error message if elements does not exist.
@@ -123,46 +169,153 @@ def response_extension(request_id):
                   extension_data['length'],
                   extension_data['reason'],
                   extension_data['due-date'],
-                  extension_data['email-extend-content'])
+                  extension_data['email-extension-summary'])
     return redirect(url_for('request.view', request_id=request_id))
 
 
-# TODO: Implement response route for email
-@response.route('/email', methods=['GET', 'POST'])
+@response.route('/link/<request_id>', methods=['POST'])
+def response_link(request_id):
+    """
+    Link response endpoint that takes in the metadata of a link for a specific request from the frontend.
+    Check if required data from form is retrieved.
+    Flash error message if required form data is missing.
+    Call add_link to process the extension form data.
+
+    :param request_id: FOIL request ID for the specific link.
+
+    :return: redirect to view request page
+    """
+    link_data = flask_request.form
+
+    required_fields = ['title',
+                       'url',
+                       'email-link-summary',
+                       'privacy']
+
+    # TODO: Get copy from business, insert sentry issue key in message
+    # Error handling to check if retrieved elements exist. Flash error message if elements does not exist.
+    for field in required_fields:
+        if link_data.get(field) is None:
+            flash('Uh Oh, it looks like the link {} is missing! '
+                  'This is probably NOT your fault.'.format(field), category='danger')
+            return redirect(url_for('request.view', request_id=request_id))
+
+    add_link(request_id,
+             link_data['title'],
+             link_data['url'],
+             link_data['email-link-summary'],
+             link_data['privacy'])
+    return redirect(url_for('request.view', request_id=request_id))
+
+
+@response.route('/instruction/<request_id>', methods=['POST'])
+def response_instructions(request_id):
+    """
+    Instruction response endpoint that takes in from the frontend, the content of a instruction for a specific request.
+    Check if required data from form is retrieved.
+    Flash error message if required form data is missing.
+    Call add_instruction to process the extension form data.
+
+    :param request_id: FOIL request ID for the specific note.
+
+    :return: redirect to view request page
+    """
+    instruction_data = flask_request.form
+
+    required_fields = ['content',
+                       'email-instruction-summary',
+                       'privacy']
+
+    # TODO: Get copy from business, insert sentry issue key in message
+    # Error handling to check if retrieved elements exist. Flash error message if elements does not exist.
+    for field in required_fields:
+        if instruction_data.get(field) is None:
+            flash('Uh Oh, it looks like the instruction {} is missing! '
+                  'This is probably NOT your fault.'.format(field), category='danger')
+            return redirect(url_for('request.view', request_id=request_id))
+
+    current_request = Requests.query.filter_by(id=request_id).first()
+    add_instruction(current_request.id,
+                    instruction_data['content'],
+                    instruction_data['email-instruction-summary'],
+                    instruction_data['privacy'])
+    return redirect(url_for('request.view', request_id=request_id))
+
+
+@response.route('/email', methods=['POST'])
 def response_email():
     """
-    Currently renders the template of the email onto the add file form.
+    Return email template for a particular response workflow step.
 
-    :return: Render email template to add file form
+    Request Parameters:
+    - request_id: FOIL request ID
+    - type: response type
+    - privacy: selected privacy option
+    - extension: data for populating html template
+        - length: selected value of extension length (-1, 20, 30, 60, 90)
+        - custom_due_date: new custom due date of request (default is current request due_date)
+        - reason: reason for extension
+    - link: data for populating html template
+        - url: url link inputted by user from front end
+    - offline_instructions: data for populating html template
+        - instruction: json object with key and values of content and privacy
+    - note: data for populating html template
+        - note: json object with key and values of content and privacy
+    - file: data for populating html template
+        - files: json object with key and values of filename and privacy
+    - email_content: (on second next click) html template of specific response which may include edits
+
+    Ex:
+    {
+         "request_id": "FOIL-XXX",
+         "type": "extension",
+         "extension": {
+               "length": "20",
+               "custom_due_date": "2016-11-14",
+               "reason": "We need more time to process your request."
+         }
+         "email_content": HTML
+    }
+
+    :return: the json response and HTTP status code
+    Ex1:
+    {
+        "template": HTML rendered response template,
+        "header": "The following will be emailed to all associated participants:"
+    }
+
+    Ex2:
+    {
+        "error": "No changes detected."
+    }
     """
-    data = json.loads(flask_request.data.decode())
+    data = flask_request.form
     request_id = data['request_id']
-    email_template = process_email_template_request(request_id, data)
-    return email_template
+    return process_email_template_request(request_id, data)
 
 
 # TODO: Implement response route for sms
 @response.route('/sms/<request_id>', methods=['GET', 'POST'])
-def response_sms():
+def response_sms(request_id):
     pass
 
 
 # TODO: Implement response route for push
 @response.route('/push/<request_id>', methods=['GET', 'POST'])
-def response_push():
+def response_push(request_id):
     pass
 
 
 # TODO: Implement response route for visiblity
 @response.route('/visiblity/<request_id>', methods=['GET', 'POST'])
-def response_visiblity():
+def response_visiblity(request_id):
     pass
 
 
-@response.route('/<response_id>', methods=['PUT'])
-def edit_response(response_id):
+@response.route('/<response_id>', methods=['PATCH'])
+def patch(response_id):
     """
-    Edit a response's privacy and its metadata.
+    Edit a response's fields and send a notification email.
 
     Expects a request body containing field names and updated values.
     Ex:
@@ -171,23 +324,103 @@ def edit_response(response_id):
         'title': 'new title'
         'filename': 'uploaded_file_name.ext'  # REQUIRED for updates to Files metadata
     }
-    Response body consists of both the old and updated data, or an error message.
+    Ex (for delete):
+    {
+        'deleted': true,
+        'confirmation': string checked against '<request_id>:<response_id>'
+            if the strings do not match, the 'deleted' field will not be updated
+    }
+
+    :return: on success:
+    {
+        'old': { original attributes and their values }
+        'new': { updated attributes and their values }
+    }
+
     """
     if current_user.is_anonymous:
-        return {}, 403
-    # TODO: user permissions check
-    resp = Responses.query.filter_by(id=response_id).first()
+        return '', 403
+
+    resp = Responses.query.filter_by(id=response_id, deleted=False).one()
     editor_for_type = {
-        response_type.FILE: RespFileEditor,
-        # response_type.NOTE: RespNoteEditor,
+        Files: RespFileEditor,
+        Notes: RespNoteEditor,
+        Instructions: RespInstructionsEditor,
         # ...
     }
-    editor = editor_for_type[resp.type](current_user, resp, flask_request)
+    editor = editor_for_type[type(resp)](current_user, resp, flask_request)
     if editor.errors:
         http_response = {"errors": editor.errors}
     else:
-        http_response = {
-            "old": editor.data_old,
-            "new": editor.data_new
-        }
+        if editor.no_change:  # TODO: unittest
+            http_response = {
+                "message": "No changes detected."
+            }
+        else:
+            http_response = {
+                "old": editor.data_old,
+                "new": editor.data_new
+            }
     return jsonify(http_response), 200
+
+
+@response.route('/get_yearly_holidays/<int:year>', methods=['GET'])
+def get_yearly_holidays(year):
+    """
+    Retrieve a list of dates that are holidays in the specified year
+
+    :param year: 4-digit year.
+
+    :return: List of strings ["YYYY-MM-DD"]
+    """
+    return jsonify(holidays=sorted(get_holidays_date_list(year)))
+
+
+@response.route('/<response_id>', methods=["GET"])
+def get_response_content(response_id):
+    """
+    Currently only supports File Responses.
+
+    Request Parameters:
+    - token: (optional) ephemeral access token
+
+    :return: response file contents or
+             redirect to login if user not authenticated and no token provided or
+             400 error if response/file not found
+    """
+    response = Responses.query.filter_by(id=response_id, deleted=False).one()
+    if response is not None and response.type == FILE:
+        upload_path = os.path.join(
+            current_app.config["UPLOAD_DIRECTORY"],
+            response.request_id
+        )
+        filepath_parts = (
+            upload_path,
+            response.name
+        )
+        filepath = os.path.join(*filepath_parts)
+        token = flask_request.args.get('token')
+        if token is not None:
+            resptok = ResponseTokens.query.filter_by(
+                token=token, response_id=response_id).first()
+            if resptok is not None:
+                if (datetime.utcnow() < resptok.expiration_date
+                   and os.path.exists(filepath)):
+                    return send_from_directory(*filepath_parts, as_attachment=True)
+                else:
+                    delete_object(resptok)
+        else:
+            if current_user.is_authenticated:
+                if ((current_user.is_public or current_user.is_agency)
+                   and UserRequests.query.filter_by(
+                        request_id=response.request_id,
+                        user_guid=current_user.guid,
+                        auth_user_type=current_user.auth_user_type).first() is not None
+                   and os.path.exists(filepath)):
+                    return send_from_directory(*filepath_parts, as_attachment=True)
+            else:
+                return redirect(url_for(
+                    'auth.index',
+                    sso2=True,
+                    return_to=flask_request.base_url))
+    return '', 400  # TODO: error pages

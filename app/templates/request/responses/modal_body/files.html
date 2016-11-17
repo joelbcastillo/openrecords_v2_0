@@ -1,0 +1,39 @@
+<form id="fileupload-update-{{ response.id }}" class="fileupload-update fileupload-form" action="/response/{{ response.id }}" method="POST">
+    <div class="fileupload-error-messages alert alert-danger" hidden></div>
+    <div>
+        <a href="" class="uploaded-filename">{{ response.name }}</a>
+    </div>
+    <br>
+    <div class="fileupload-control">
+        <div class="fileupload-divs">
+            <div class="row fileupload-buttonbar">
+                <span class="btn btn-default fileinput-button">
+                    <i class="glyphicon glyphicon-open-file"></i>
+                    <span>Replace File</span>
+                    <input type="file" name="file" id="add-files">
+                </span>
+                <span class="fileupload-process"></span>
+            </div>
+            <div role="presentation">
+                <div class="files"></div>
+            </div>
+        </div>
+    </div>
+    <div class="input-group">
+        <span class="input-group-addon">Title</span>
+        <input type="text" name="title" value="{{ response.title }}"
+               title="title" aria-describedby="title">
+    </div>
+    <div class="title-error pull-right"></div>
+    <div>
+    {% for privacy in privacies %}
+        <div class="radio">
+            <label>
+                <input type="radio" name="privacy" value="{{ privacy }}"
+                   {% if response.privacy == privacy %}checked{% endif %}>
+            {{ privacy | format_response_privacy }}
+            </label>
+        </div>
+    {% endfor %}
+    </div>
+</form>

@@ -144,3 +144,33 @@ class AnonymousRequestForm(Form):
     request_file = FileField('Upload File')
 
     submit = SubmitField('Submit Request')
+
+
+class EditRequesterForm(Form):
+    email = StringField('Email')
+    phone = StringField('Phone Number')
+    fax = StringField('Fax Number')
+    address_one = StringField('Address Line 1')
+    address_two = StringField('Address Line 2')
+    city = StringField('City')
+    state = SelectField('State', choices=STATES)
+    zipcode = StringField('Zip Code')
+    title = StringField('Title')
+    organization = StringField('Organization')
+
+    def __init__(self, requester):
+        """
+        :type requester: app.models.Users
+        """
+        super(EditRequesterForm, self).__init__()
+        self.email.data = requester.email or ""
+        self.phone.data = requester.phone_number or ""
+        self.fax.data = requester.fax_number or ""
+        self.title.data = requester.title or ""
+        self.organization.data = requester.organization or ""
+        if requester.mailing_address is not None:
+            self.address_one.data = requester.mailing_address.get("address_one") or ""
+            self.address_two.data = requester.mailing_address.get("address_two") or ""
+            self.city.data = requester.mailing_address.get("city") or ""
+            self.state.data = requester.mailing_address.get("state") or ""
+            self.zipcode.data = requester.mailing_address.get("zip") or ""

@@ -20,18 +20,17 @@ from app import upload_redis
 from app.constants import (
     event_type,
     role_name as role,
-    ACKNOWLEDGEMENT_DAYS_DUE,
+    ACKNOWLEDGMENT_DAYS_DUE,
     user_type_request
 )
 from app.constants.user_type_auth import ANONYMOUS_USER
 from app.constants.response_privacy import RELEASE_AND_PRIVATE
-from app.constants.response_type import FILE
-from app.constants.request_status import OPEN
 from app.constants.submission_methods import DIRECT_INPUT
 from app.lib.date_utils import get_following_date, get_due_date
 from app.lib.db_utils import create_object, update_object
 from app.lib.file_utils import get_mime_type
 from app.lib.user_information import create_mailing_address
+from app.lib.utils import get_file_hash
 from app.models import (
     Requests,
     Agencies,
@@ -95,13 +94,13 @@ def create_request(title,
     # 3b. Send Email Notification Text for Requester
 
     # 4a. Calculate Request Submitted Date (Round to next business day)
-    date_created = datetime.now()
+    date_created = datetime.utcnow()
     date_submitted = (agency_date_submitted
                       if current_user.is_agency
                       else get_following_date(date_created))
 
     # 4b. Calculate Request Due Date (month day year but time is always 5PM, 5 Days after submitted date)
-    due_date = get_due_date(date_submitted, ACKNOWLEDGEMENT_DAYS_DUE)
+    due_date = get_due_date(date_submitted, ACKNOWLEDGMENT_DAYS_DUE)
 
     # 5. Create Request
     request = Requests(
@@ -113,7 +112,6 @@ def create_request(title,
         date_submitted=date_submitted,
         due_date=due_date,
         submission=submission,
-        current_status=OPEN
     )
     create_object(request)
 
@@ -127,8 +125,8 @@ def create_request(title,
             email=email,
             first_name=first_name,
             last_name=last_name,
-            title=user_title,
-            organization=organization,
+            title=user_title or None,
+            organization=organization or None,
             email_validated=False,
             terms_of_use_accepted=False,
             phone_number=phone,
@@ -139,14 +137,23 @@ def create_request(title,
 
     if upload_path is not None:
         # 7. Move file to upload directory
-        metadata_id, metadata = _move_validated_upload(request_id, upload_path)
+        upload_path = _move_validated_upload(request_id, upload_path)
 
         # 8. Create response object
-        response = Responses(request_id=request_id,
-                             _type=FILE,
-                             date_modified=datetime.utcnow(),
-                             metadata_id=metadata_id,
-                             privacy=RELEASE_AND_PRIVATE)
+
+        title = ''  # TODO: add optional title field to new-request page?
+        name = os.path.basename(upload_path)
+        mime_type = get_mime_type(request_id, upload_path)
+        size = os.path.getsize(upload_path)
+        hash_ = get_file_hash(upload_path)
+
+        response = Files(request_id,
+                         RELEASE_AND_PRIVATE,
+                         title,
+                         name,
+                         mime_type,
+                         size,
+                         hash_)
         create_object(obj=response)
 
         # 8. Create upload Event
@@ -156,8 +163,7 @@ def create_request(title,
                               request_id=request_id,
                               type=event_type.FILE_ADDED,
                               timestamp=datetime.utcnow(),
-                              new_response_value=metadata.update(
-                                  privacy=RELEASE_AND_PRIVATE))
+                              new_value=response.val_for_events)
         create_object(upload_event)
 
     role_to_user = {
@@ -170,24 +176,18 @@ def create_request(title,
 
     # 9. Create Event
     timestamp = datetime.utcnow()
-    request_metadata = {
-        'title': request.title,
-        'description': request.description,
-        'current_status': request.current_status,
-        'due_date': request.due_date.isoformat()
-    }
     event = Events(user_id=user.guid,
                    auth_user_type=user.auth_user_type,
                    request_id=request_id,
                    type=event_type.REQ_CREATED,
                    timestamp=timestamp,
-                   new_response_value=request_metadata)
+                   new_value=request.val_for_events)
     create_object(event)
     if current_user.is_agency:
         agency_event = Events(user_id=current_user.guid,
                               auth_user_type=current_user.auth_user_type,
                               request_id=request.id,
-                              type=event_type.REQ_CREATED,
+                              type=event_type.AGENCY_REQ_CREATED,
                               timestamp=timestamp)
         create_object(agency_event)
 
@@ -234,10 +234,10 @@ def get_address(form):
                 app.request.forms.AnonymousRequestForm
     """
     return create_mailing_address(
-        form.address.data,
-        form.city.data,
-        form.state.data,
-        form.zipcode.data,
+        form.address.data or None,
+        form.city.data or None,
+        form.state.data or None,
+        form.zipcode.data or None,
         form.address_two.data or None
     )
 
@@ -314,20 +314,7 @@ def _move_validated_upload(request_id, tmp_path):
     upload_redis.set(
         get_upload_key(request_id, valid_name),
         upload_status.READY)
-
-    # Store File Object
-    size = os.path.getsize(valid_path)
-    mime_type = get_mime_type(request_id, valid_name)
-    file_obj = Files(name=valid_name, mime_type=mime_type, title='', size=size)
-    create_object(obj=file_obj)
-
-    file_metadata = {
-        'name': valid_name,
-        'mime_type': mime_type,
-        'title': '',
-        'size': size
-    }
-    return file_obj.id, file_metadata
+    return valid_path
 
 
 def generate_request_id(agency_ein):
@@ -343,7 +330,7 @@ def generate_request_id(agency_ein):
                       Agencies,
                       agency_ein)
         request_id = "FOIL-{0:s}-{1:03d}-{2:05d}".format(
-            datetime.now().strftime("%Y"), int(agency_ein), int(next_request_number))
+            datetime.utcnow().strftime("%Y"), int(agency_ein), int(next_request_number))
         return request_id
     return None
 
@@ -367,14 +354,6 @@ def generate_guid():
     return str(uuid.uuid4())
 
 
-def generate_request_metadata(request):
-    """
-
-    :return:
-    """
-    pass
-
-
 def send_confirmation_email(request, agency, user):
     """
     Sends out a confirmation email to requester and bcc the agency default email associated with the request.
@@ -383,15 +362,11 @@ def send_confirmation_email(request, agency, user):
     :param request: Requests object containing the new created request
     :param agency: Agencies object containing the agency of the new request
     :param user: Users object containing the user who created the request
-    :return: sends an email to the requester and agency containing all information related to the request
     """
     subject = 'New Request Created ({})'.format(request.id)
 
     # get the agency's default email and adds it to the bcc list
-    agency_default_email = agency.default_email
-    agency_emails = []  # FIXME: Can this be empty?
-    agency_emails.append(agency_default_email)
-    bcc = agency_emails or ['agency@email.com']
+    bcc = [agency.default_email]
 
     # gets the email and address information from the requester
     requester_email = user.email
@@ -402,7 +377,7 @@ def send_confirmation_email(request, agency, user):
 
     # grabs the html of the email message so we can store the content in the Emails object
     email_content = render_template("email_templates/email_confirmation.html", current_request=request,
-                                    agency_name=agency.name, user=user, address=address)
+                                    agency_name=agency.name, user=user, address=address, page=page)
 
     try:
         # if the requester supplied an email sent it to the request and bcc the agency
@@ -411,14 +386,8 @@ def send_confirmation_email(request, agency, user):
                 request.id,
                 email_content,
                 subject,
-                "email_templates/email_confirmation",
                 to=[requester_email],
                 bcc=bcc,
-                current_request=request,
-                agency_name=agency,
-                user=user,
-                address=address,
-                page=page
             )
         # otherwise send the email directly to the agency
         else:
@@ -426,13 +395,7 @@ def send_confirmation_email(request, agency, user):
                 request.id,
                 email_content,
                 subject,
-                "email_templates/email_confirmation",
                 to=[agency_default_email],
-                current_request=request,
-                agency_name=agency,
-                user=user,
-                address=address,
-                page=page
             )
     except AssertionError:
         print('Must include: To, CC, or BCC')

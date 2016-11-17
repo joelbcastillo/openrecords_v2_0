@@ -20,9 +20,10 @@ def create_object(obj):
     requester id. 'es_create' is called explicitly for a
     Requests object in app.request.utils.
 
-    :param obj: Object class being created in database
+    :param obj: object (instance of sqlalchemy model) to create
 
-    :return: Adding and committing object to database
+    :return: string representation of created object
+        or None if creation failed
     """
     try:
         db.session.add(obj)
@@ -56,8 +57,10 @@ def update_object(data, obj_type, obj_id):
         for attr, value in data.items():
             if isinstance(value) == dict:
                 # update json values
+                attr_json = getattr(obj, attr) or {}
                 for key, val in value.items():
-                    getattr(obj, attr)[key] = val
+                    attr_json[key] = val
+                setattr(obj, attr, attr_json)
                 flag_modified(obj, attr)
             else:
                 setattr(obj, attr, value)
@@ -73,6 +76,24 @@ def update_object(data, obj_type, obj_id):
                 obj.es_update()
             return str(obj)
     return None
+
+
+def delete_object(obj):
+    """
+    Delete a database record.
+
+    :param obj: object (instance of sqlalchemy model) to delete
+    :return: was the record deleted successfully?
+    """
+    try:
+        db.session.delete(obj)
+        db.session.commit()
+        return True
+    except Exception as e:
+        print("Failed to DELETE {} : {}".format(obj, e))
+        print(sys.exc_info())
+        db.session.rollback()
+        return False
 
 
 def get_obj(obj_type, obj_id):
