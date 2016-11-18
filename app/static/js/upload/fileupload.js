@@ -7,7 +7,7 @@ function bindFileUpload(target,
                         downloadTemplateId,
                         nextButton) {
     /*
-    Binds jquery file upload to the element identified by 'target'
+    Binds jquery file upload to the element identified by "target"
 
     @param {string} target - jquery selector string (ex. "#fileupload")
     @param {string} requestId - FOIL request id
@@ -60,9 +60,9 @@ function bindFileUpload(target,
                 4000);  // McAfee Scanner minimum 3+ second startup
         }
         else {
-            // Re-enable 'next' button
+            // Re-enable "next" button
             if (forUpdate) {
-                $(nextButton).attr('enabled', true);
+                $(nextButton).attr("enabled", true);
             }
         }
     }).bind("fileuploadadd", function (e, data) {
@@ -145,7 +145,7 @@ function pollUploadStatus(uploadFilename, htmlId, requestId, forUpdate, nextButt
                 setRemoveBtn(requestId, tr.find(".remove-post-fileupload"),
                     false);  // file already deleted
             }
-            else if (response.status != "ready") {
+            else if (response.status !== "ready") {
                 setTimeout(pollUploadStatus.bind(
                     null, uploadFilename, htmlId, requestId, forUpdate, nextButton
                 ), 2000);

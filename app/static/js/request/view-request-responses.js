@@ -88,7 +88,7 @@ $(function () {
     // replaces currently displayed responses with next 10 responses
     navButtons.find(".next").click(function () {
         index += indexIncrement;
-        if (index == responses.length - indexIncrement) {
+        if (index === responses.length - indexIncrement) {
             loadMoreResponses();
         }
         if (responses.length < index) {
@@ -501,7 +501,7 @@ $(function () {
                 error: function(error) {
                     console.log(error);
                 }
-            })
+            });
         });
     }
 

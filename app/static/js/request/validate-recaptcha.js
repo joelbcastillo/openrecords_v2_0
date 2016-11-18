@@ -3,7 +3,7 @@
  */
 function validateRecaptcha() {
     var captchaResponse = grecaptcha.getResponse();
-    if (captchaResponse.length == 0) {
+    if (captchaResponse.length === 0) {
         // Captcha is not Passed
         document.getElementById("recaptcha-error").style.display = "block";
         return false;
