@@ -39,7 +39,7 @@ function bindFileUpload(target,
             if (data.result) {
                 if (data.result.files[0].error) {
                     data.context[0].abortChunkSend = true;
-                    data.files[0].error = data.result.files[0].error
+                    data.files[0].error = data.result.files[0].error;
                 }
             }
         },
@@ -157,7 +157,7 @@ function pollUploadStatus(uploadFilename, htmlId, requestId, forUpdate, nextButt
                 setRemoveBtn(requestId, tr.find(".remove-post-fileupload"), true, forUpdate);
                 if (forUpdate) {
                     // Enable "next" button
-                    $(nextButton).attr("disabled", false)
+                    $(nextButton).attr("disabled", false);
                 }
             }
         }
@@ -173,10 +173,10 @@ function deleteUpload(requestId,
      */
     var data = {};
     if (updatedOnly) {
-        data = {updatedOnly: true}
+        data = {updatedOnly: true};
     }
     else if (quarantinedOnly) {
-        data = {quarantinedOnly: true}
+        data = {quarantinedOnly: true};
     }
 
     $.ajax({

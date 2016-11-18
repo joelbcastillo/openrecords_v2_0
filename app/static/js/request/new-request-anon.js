@@ -88,7 +88,7 @@ $(document).ready(function () {
     // Contact information validation
     $("#email").attr("data-parsley-type", "email");
     // Checks that at least one form of contact was filled out in addition to the rest of the form.
-    $("#request-form").parsley().on("form:validate", function () {
+    $('#request-form').parsley().on('form:validate', function () {
         // Re-apply validators to fields in the event that they were removed from previous validation requests.
         for (i = 0 ; i < requiredFields.length ; i++){
            $("#" + requiredFields[i]).attr("data-parsley-required","");
@@ -140,18 +140,18 @@ $(document).ready(function () {
     });
 
     // Disable submit button on form submission
-    $("#request-form").submit(function() {
-        $("#submit").hide();
-        $("#processing-submission").show()
+    $('#request-form').submit(function() {
+        $('#submit').hide();
+        $('#processing-submission').show();
     });
 
     // Character count for creating a new request
-    $("#request-title").keyup(function () {
-        characterCounter("#title-character-count", 90, $(this).val().length)
+    $('#request-title').keyup(function () {
+        characterCounter("#title-character-count", 90, $(this).val().length);
     });
 
-    $("#request-description").keyup(function () {
-        characterCounter("#description-character-count", 5000, $(this).val().length)
+    $('#request-description').keyup(function () {
+        characterCounter("#description-character-count", 5000, $(this).val().length);
     });
 });
 

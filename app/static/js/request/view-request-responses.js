@@ -72,7 +72,7 @@ $(function () {
             error: function (error) {
                 console.log(error);
             }
-        })
+        });
     }
 
     var navButtons = $("#responses-nav-buttons");
@@ -99,8 +99,8 @@ $(function () {
 
     // TODO: DELETE "updated" on modal close and reset / refresh page (wait until all responses ready)
 
-    function setEditResponseWorkflow(responseId, response_type) {
-        // FIXME: if response_type does not need email workflow, some of these elements won"t be found!
+    function setEditResponseWorkflow(responseId, responseType) {
+        // FIXME: if responseType does not need email workflow, some of these elements won"t be found!
 
         var responseModal = $("#response-modal-" + responseId);
 
@@ -124,7 +124,7 @@ $(function () {
             height: 180
         });
 
-        switch (response_type) {
+        switch (responseType) {
             case "files":  // TODO: constants?
                 next1.click(function (e) {
                     // Validate fileupload form
@@ -336,7 +336,7 @@ $(function () {
                     "Note content must be less than 500 characters");
 
                 $(first.find(".note-content")).keyup(function () {
-                    characterCounter(first.find(".note-content-character-count"), 500, $(this).val().length)
+                    characterCounter(first.find(".note-content-character-count"), 500, $(this).val().length);
                 });
 
                 break;
@@ -442,7 +442,7 @@ $(function () {
                     "Instruction content must be less than 500 characters");
 
                 $(first.find(".instruction-content")).keyup(function () {
-                    characterCounter(first.find(".instruction-content-character-count"), 500, $(this).val().length)
+                    characterCounter(first.find(".instruction-content-character-count"), 500, $(this).val().length);
                 });
 
                 break;
@@ -464,7 +464,7 @@ $(function () {
             e.preventDefault();
         });
 
-        var deleteConfirmString = sprintf("%s:%s", requestId, responseId);
+        var deleteConfirmString = sprintf("%s:%s", request_id, responseId);
         deleteConfirmCheck.on("input", function() {
             if ($(this).val() === deleteConfirmString) {
                 deleteConfirm.attr("disabled", false);
@@ -499,7 +499,7 @@ $(function () {
                     location.reload();
                 },
                 error: function(error) {
-                    console.log(error)
+                    console.log(error);
                 }
             })
         });
