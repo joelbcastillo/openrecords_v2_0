@@ -2,23 +2,23 @@
 $(function () {
     var responses = null;
     var index = 0;
-    var index_increment = 10;
+    var indexIncrement = 10;
 
-    var request_id = $('#request-id').text();
+    var request_id = $("#request-id").text();
 
     // get first set of responses on page load
     $.ajax({
 
-        url: '/request/api/v1.0/responses',
+        url: "/request/api/v1.0/responses",
         data: {
             start: 0,
             request_id: request_id,
-            with_template: true
+            withTemplate: true
         },
         success: function (data) {
             responses = data.responses;
-            if (responses.length > index_increment) {
-                $('#responses-nav-buttons').show();
+            if (responses.length > indexIncrement) {
+                $("#responses-nav-buttons").show();
             }
             showResponses();
         },
@@ -29,14 +29,14 @@ $(function () {
 
 
     function showResponses() {
-        var response_list = $('#request-responses');
-        response_list.empty();
+        var responseList = $("#request-responses");
+        responseList.empty();
 
         if (responses.length !== 0) {
-            var index_incremented = index + index_increment;
-            var end = responses.length < index_incremented ? responses.length : index_incremented;
+            var indexIncremented = index + indexIncrement;
+            var end = responses.length < indexIncremented ? responses.length : indexIncremented;
             for (var i = index; i < end; i++) {
-                response_list.append(responses[i].template);
+                responseList.append(responses[i].template);
                 setEditResponseWorkflow(responses[i].id, responses[i].type);
                 setDeleteResponseWorkflow(responses[i].id);
                 if (responses[i].type === "files") {
@@ -53,18 +53,18 @@ $(function () {
             }
         }
         else {
-            response_list.text("None");
+            responseList.text("None");
         }
     }
 
 
     function loadMoreResponses() {
         $.ajax({
-            url: '/request/api/v1.0/responses',
+            url: "/request/api/v1.0/responses",
             data: {
                 start: responses.length,
                 request_id: request_id,
-                with_template: true
+                withTemplate: true
             },
             success: function (data) {
                 responses = responses.concat(data.responses);
@@ -75,32 +75,32 @@ $(function () {
         })
     }
 
-    var nav_buttons = $('#responses-nav-buttons');
+    var nav_buttons = $("#responses-nav-buttons");
 
     // replaces currently displayed responses with previous 10 responses
-    nav_buttons.find('.prev').click(function () {
+    nav_buttons.find(".prev").click(function () {
         if (index !== 0) {
-            index -= index_increment;
+            index -= indexIncrement;
             showResponses();
         }
     });
 
     // replaces currently displayed responses with next 10 responses
-    nav_buttons.find('.next').click(function () {
-        index += index_increment;
-        if (index == responses.length - index_increment) {
+    nav_buttons.find(".next").click(function () {
+        index += indexIncrement;
+        if (index == responses.length - indexIncrement) {
             loadMoreResponses();
         }
         if (responses.length < index) {
-            index -= index_increment;
+            index -= indexIncrement;
         }
         showResponses();
     });
 
-    // TODO: DELETE 'updated' on modal close and reset / refresh page (wait until all responses ready)
+    // TODO: DELETE "updated" on modal close and reset / refresh page (wait until all responses ready)
 
     function setEditResponseWorkflow(response_id, response_type) {
-        // FIXME: if response_type does not need email workflow, some of these elements won't be found!
+        // FIXME: if response_type does not need email workflow, some of these elements won"t be found!
 
         var responseModal = $("#response-modal-" + response_id);
 
@@ -118,7 +118,7 @@ $(function () {
             menubar: false,
             // sets tinymce to enable only on specific textareas classes
             mode: "specific_textareas",
-            // selector for tinymce textarea classes is set to 'tinymce-area'
+            // selector for tinymce textarea classes is set to "tinymce-area"
             editor_selector: "tinymce-area",
             elementpath: false,
             height: 180
@@ -141,7 +141,7 @@ $(function () {
 
                     // Do not proceed if files with error are not removed
                     if (first.find(".upload-error").length > 0 ||
-                        first.find(".error-post-fileupload").is(':visible')) {
+                        first.find(".error-post-fileupload").is(":visible")) {
                         first.find(".fileupload-error-messages").text(
                             "Files with Errors must be removed").show();
                         e.preventDefault();
@@ -207,7 +207,7 @@ $(function () {
                 });
 
                 prev2.click(function () {
-                    first.find('.fileupload-error-messages').hide();
+                    first.find(".fileupload-error-messages").hide();
                     second.hide();
                     first.show();
                 });
@@ -249,7 +249,7 @@ $(function () {
                                 template_name: "email_edit_response.html",
                                 type: "edit",
                                 response_id: response_id,
-                                content: first.find('.note-content').val(),
+                                content: first.find(".note-content").val(),
                                 privacy: first.find("input[name=privacy]:checked").val(),
                                 confirmation: false
                             },
@@ -323,15 +323,15 @@ $(function () {
                 });
 
                 // Apply parsley data required validation to note title and url
-                first.find('.note-content').attr("data-parsley-required", "");
+                first.find(".note-content").attr("data-parsley-required", "");
 
                 // Apply parsley max length validation to note title and url
-                first.find('.note-content').attr("data-parsley-maxlength", "500");
+                first.find(".note-content").attr("data-parsley-maxlength", "500");
 
                 // Apply custom validation messages
-                first.find('.note-content').attr("data-parsley-required-message",
+                first.find(".note-content").attr("data-parsley-required-message",
                     "Note content must be provided");
-                first.find('.note-content').attr("data-parsley-maxlength-message",
+                first.find(".note-content").attr("data-parsley-maxlength-message",
                     "Note content must be less than 500 characters");
 
                 $(first.find(".note-content")).keyup(function () {
@@ -354,7 +354,7 @@ $(function () {
                                 template_name: "email_edit_response.html",
                                 type: "edit",
                                 response_id: response_id,
-                                content: first.find('.instruction-content').val(),
+                                content: first.find(".instruction-content").val(),
                                 privacy: first.find("input[name=privacy]:checked").val(),
                                 confirmation: false
                             },
@@ -428,15 +428,15 @@ $(function () {
                 });
 
                 // Apply parsley data required validation to note title and url
-                first.find('.instruction-content').attr("data-parsley-required", "");
+                first.find(".instruction-content").attr("data-parsley-required", "");
 
                 // Apply parsley max length validation to note title and url
-                first.find('.instruction-content').attr("data-parsley-maxlength", "500");
+                first.find(".instruction-content").attr("data-parsley-maxlength", "500");
 
                 // Apply custom validation messages
-                first.find('.instruction-content').attr("data-parsley-required-message",
+                first.find(".instruction-content").attr("data-parsley-required-message",
                     "Instruction content must be provided");
-                first.find('.instruction-content').attr("data-parsley-maxlength-message",
+                first.find(".instruction-content").attr("data-parsley-maxlength-message",
                     "Instruction content must be less than 500 characters");
 
                 $(first.find(".instruction-content")).keyup(function () {
@@ -458,7 +458,7 @@ $(function () {
         var deleteConfirmCheck = responseModal.find("input[name=delete-confirm-string]");
         var deleteConfirm = responseModal.find(".delete-confirm");
 
-        deleteConfirmCheck.on('paste', function(e) {
+        deleteConfirmCheck.on("paste", function(e) {
             e.preventDefault();
         });
 
@@ -481,7 +481,7 @@ $(function () {
             deleteSection.hide();
             defaultSection.show();
 
-            deleteConfirmCheck.val('');
+            deleteConfirmCheck.val("");
         });
 
         responseModal.find(".delete-confirm").click(function() {

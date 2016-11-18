@@ -68,20 +68,20 @@ function bindFileUpload(target,
     }).bind("fileuploadadd", function (e, data) {
         if (for_update) {
             // Replace added file OR Delete uploaded file
-            var elem_files = $(target).find(".files");
-            var templates_upload = elem_files.children(".template-upload");
-            var templates_download = elem_files.children(".template-download");
+            var elemFiles = $(target).find(".files");
+            var templates_upload = elemFiles.children(".template-upload");
+            var templatesDownload = elemFiles.children(".template-download");
             if (templates_upload.length > 0) {
                 templates_upload.remove();
             }
-            if (templates_download.length > 0) {
-                for (var i = 0; i < templates_download.length; i++) {
-                    var file_identifier = $(templates_download[i]).attr("id");
+            if (templatesDownload.length > 0) {
+                for (var i = 0; i < templatesDownload.length; i++) {
+                    var file_identifier = $(templatesDownload[i]).attr("id");
                     if (typeof file_identifier != "undefined") {
                         // if this template is for a successful upload
                         deleteUpload(request_id, file_identifier, true);
                     }
-                    $(templates_download[i]).remove();
+                    $(templatesDownload[i]).remove();
                 }
             }
         }
@@ -102,18 +102,18 @@ function bindFileUpload(target,
         $(".fileupload-loading").hide();
         $(".fileupload-process").hide();
     }).bind("fileuploadstarted", function (e, data) {
-        // Disable 'next' button
+        // Disable "next" button
         if (for_update) {
-            $(nextButton).attr('disabled', true);
+            $(nextButton).attr("disabled", true);
         }
     });
 }
 
 function encodeName(name) {
     /*
-    Returns an encoded (base64 without padding) version of 'name' intended
+    Returns an encoded (base64 without padding) version of "name" intended
     for use as/in an html id attribute or for use in a url.
-    Padding is removed because '=' is an invalid character for an html id
+    Padding is removed because "=" is an invalid character for an html id
     and it is reserved character for urls.
      */
     return window.btoa(name).replace(/=/g, "");
@@ -156,8 +156,8 @@ function pollUploadStatus(upload_filename, htmlId, request_id, for_update, nextB
                 tr.find(".processing-upload").remove();
                 setRemoveBtn(request_id, tr.find(".remove-post-fileupload"), true, for_update);
                 if (for_update) {
-                    // Enable 'next' button
-                    $(nextButton).attr('disabled', false)
+                    // Enable "next" button
+                    $(nextButton).attr("disabled", false)
                 }
             }
         }
@@ -166,14 +166,14 @@ function pollUploadStatus(upload_filename, htmlId, request_id, for_update, nextB
 
 function deleteUpload(request_id,
                       filecode,
-                      updated_only,
+                      updatedOnly,
                       quarantined_only) {
     /*
     Send a DELETE request to the upload endpoint.
      */
     var data = {};
-    if (updated_only) {
-        data = {updated_only: true}
+    if (updatedOnly) {
+        data = {updatedOnly: true}
     }
     else if (quarantined_only) {
         data = {quarantined_only: true}

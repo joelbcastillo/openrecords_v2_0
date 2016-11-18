@@ -89,7 +89,7 @@ def get_request_responses():
     Request parameters:
     - start: (int) starting index
     - request_id: FOIL request id
-    - with_template: (default: False) include html (rows and modals) for each response
+    - withTemplate: (default: False) include html (rows and modals) for each response
     """
     start = int(flask_request.args['start'])
 
@@ -109,7 +109,7 @@ def get_request_responses():
             'id': response.id,
             'type': response.type
         }
-        if eval_request_bool(flask_request.args.get('with_template'), False):
+        if eval_request_bool(flask_request.args.get('withTemplate'), False):
             row = render_template(
                 template_path + 'row.html',
                 response=response,

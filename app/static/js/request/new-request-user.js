@@ -43,7 +43,7 @@ $(document).ready(function () {
     // Limit the size of the file upload to 20 Mb. Second parameter is number of Mb"s.
     $("#request-file").attr("data-parsley-max-file-size","20");
 
-    $('#request-form').parsley().on('form:validate', function () {
+    $("#request-form").parsley().on("form:validate", function () {
         // Do stuff when parsley validates
         // TODO: this or combine (see the other new-request-* js files)
     });
@@ -58,17 +58,17 @@ $(document).ready(function () {
     });
 
     // Disable submit button on form submission
-    $('#request-form').submit(function() {
-        $('#submit').hide();
-        $('#processing-submission').show()
+    $("#request-form").submit(function() {
+        $("#submit").hide();
+        $("#processing-submission").show()
     });
 
     // Character count for creating a new request
-    $('#request-title').keyup(function () {
+    $("#request-title").keyup(function () {
         characterCounter("#title-character-count", 90, $(this).val().length)
     });
 
-    $('#request-description').keyup(function () {
+    $("#request-description").keyup(function () {
         characterCounter("#description-character-count", 5000, $(this).val().length)
     });
 
