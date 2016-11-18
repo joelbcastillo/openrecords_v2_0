@@ -4,7 +4,7 @@ $(function () {
     var index = 0;
     var indexIncrement = 10;
 
-    var request_id = $("#request-id").text();
+    var requestId = $("#request-id").text();
 
     // get first set of responses on page load
     $.ajax({
@@ -12,7 +12,7 @@ $(function () {
         url: "/request/api/v1.0/responses",
         data: {
             start: 0,
-            request_id: request_id,
+            requestId: requestId,
             withTemplate: true
         },
         success: function (data) {
@@ -42,7 +42,7 @@ $(function () {
                 if (responses[i].type === "files") {
                     bindFileUpload(
                         "#fileupload-update-" + responses[i].id,
-                        request_id,
+                        requestId,
                         true,
                         "template-upload-update",
                         "template-download-update",
@@ -63,7 +63,7 @@ $(function () {
             url: "/request/api/v1.0/responses",
             data: {
                 start: responses.length,
-                request_id: request_id,
+                requestId: requestId,
                 withTemplate: true
             },
             success: function (data) {
@@ -75,10 +75,10 @@ $(function () {
         })
     }
 
-    var nav_buttons = $("#responses-nav-buttons");
+    var navButtons = $("#responses-nav-buttons");
 
     // replaces currently displayed responses with previous 10 responses
-    nav_buttons.find(".prev").click(function () {
+    navButtons.find(".prev").click(function () {
         if (index !== 0) {
             index -= indexIncrement;
             showResponses();
@@ -86,7 +86,7 @@ $(function () {
     });
 
     // replaces currently displayed responses with next 10 responses
-    nav_buttons.find(".next").click(function () {
+    navButtons.find(".next").click(function () {
         index += indexIncrement;
         if (index == responses.length - indexIncrement) {
             loadMoreResponses();
@@ -99,10 +99,10 @@ $(function () {
 
     // TODO: DELETE "updated" on modal close and reset / refresh page (wait until all responses ready)
 
-    function setEditResponseWorkflow(response_id, response_type) {
+    function setEditResponseWorkflow(responseId, response_type) {
         // FIXME: if response_type does not need email workflow, some of these elements won"t be found!
 
-        var responseModal = $("#response-modal-" + response_id);
+        var responseModal = $("#response-modal-" + responseId);
 
         var first = responseModal.find(".first");
         var second = responseModal.find(".second");
@@ -119,7 +119,7 @@ $(function () {
             // sets tinymce to enable only on specific textareas classes
             mode: "specific_textareas",
             // selector for tinymce textarea classes is set to "tinymce-area"
-            editor_selector: "tinymce-area",
+            editorSelector: "tinymce-area",
             elementpath: false,
             height: 180
         });
@@ -156,13 +156,13 @@ $(function () {
                             url: "/response/email",
                             type: "POST",
                             data: {
-                                request_id: request_id,
-                                template_name: "email_response_file.html",
+                                requestId: requestId,
+                                templateName: "email_response_file.html",
                                 type: "files"
                             },
                             success: function (data) {
                                 // Data should be html template page.
-                                tinyMCE.get("email-content-" + response_id).setContent(data.template);
+                                tinyMCE.get("email-content-" + responseId).setContent(data.template);
                             }
                         });
                     }
@@ -189,11 +189,11 @@ $(function () {
                         url: "/response/email",
                         type: "POST",
                         data: {
-                            request_id: request_id,
-                            template_name: "email_response_file.html",
+                            requestId: requestId,
+                            templateName: "email_response_file.html",
                             type: "files",
                             files: JSON.stringify(files),
-                            email_content: $("#email-content-" + response_id).val()
+                            emailContent: $("#email-content-" + responseId).val()
                         },
                         success: function (data) {
                             // Data should be html template page.
@@ -221,7 +221,7 @@ $(function () {
                 third.find(".response-modal-submit").click(function() {
                     var form = first.find("form");
                     $.ajax({
-                        url: "/response/" + response_id,
+                        url: "/response/" + responseId,
                         type: "PATCH",
                         data: form.serializeArray(), // TODO: remove hidden email summaries
                         success: function () {
@@ -245,10 +245,10 @@ $(function () {
                             url: "/response/email",
                             type: "POST",
                             data: {
-                                request_id: request_id,
-                                template_name: "email_edit_response.html",
+                                requestId: requestId,
+                                templateName: "email_edit_response.html",
                                 type: "edit",
-                                response_id: response_id,
+                                responseId: responseId,
                                 content: first.find(".note-content").val(),
                                 privacy: first.find("input[name=privacy]:checked").val(),
                                 confirmation: false
@@ -263,7 +263,7 @@ $(function () {
                                     second.show();
                                     first.find(".note-error-messages").text(
                                         data.error).hide();
-                                    tinyMCE.get("email-content-" + response_id).setContent(data.template);
+                                    tinyMCE.get("email-content-" + responseId).setContent(data.template);
                                 }
                             }
                         });
@@ -280,14 +280,15 @@ $(function () {
                         url: "/response/email",
                         type: "POST",
                         data: {
-                            request_id: request_id,
-                            template_name: "email_edit_response.html",
+                            requestId: 
+                            requestId,
+                            templateName: "email_edit_response.html",
                             type: "edit",
-                            response_id: response_id,
+                            responseId: responseId,
                             content: first.find(".note-content").val(),
                             privacy: first.find("input[name=privacy]:checked").val(),
                             confirmation: true,
-                            email_content: $("#email-content-" + response_id).val()
+                            emailContent: $("#email-content-" + responseId).val()
                         },
                         success: function (data) {
                             third.find(".confirmation-header").text(data.header);
@@ -313,7 +314,7 @@ $(function () {
                 third.find(".response-modal-submit").click(function() {
                     var form = first.find("form");
                     $.ajax({
-                        url: "/response/" + response_id,
+                        url: "/response/" + responseId,
                         type: "PATCH",
                         data: form.serializeArray(),
                         success: function (response) {
@@ -350,10 +351,10 @@ $(function () {
                             url: "/response/email",
                             type: "POST",
                             data: {
-                                request_id: request_id,
-                                template_name: "email_edit_response.html",
+                                requestId: requestId,
+                                templateName: "email_edit_response.html",
                                 type: "edit",
-                                response_id: response_id,
+                                responseId: responseId,
                                 content: first.find(".instruction-content").val(),
                                 privacy: first.find("input[name=privacy]:checked").val(),
                                 confirmation: false
@@ -368,7 +369,7 @@ $(function () {
                                     second.show();
                                     first.find(".instruction-error-messages").text(
                                         data.error).hide();
-                                    tinyMCE.get("email-content-" + response_id).setContent(data.template);
+                                    tinyMCE.get("email-content-" + responseId).setContent(data.template);
                                 }
                             }
                         });
@@ -385,14 +386,15 @@ $(function () {
                         url: "/response/email",
                         type: "POST",
                         data: {
-                            request_id: request_id,
-                            template_name: "email_edit_response.html",
+                            
+                            requestId: requestId,
+                            templateName: "email_edit_response.html",
                             type: "edit",
-                            response_id: response_id,
+                            responseId: responseId,
                             content: first.find(".instruction-content").val(),
                             privacy: first.find("input[name=privacy]:checked").val(),
                             confirmation: true,
-                            email_content: $("#email-content-" + response_id).val()
+                            emailContent: $("#email-content-" + responseId).val()
                         },
                         success: function (data) {
                             third.find(".confirmation-header").text(data.header);
@@ -418,7 +420,7 @@ $(function () {
                 third.find(".response-modal-submit").click(function() {
                     var form = first.find("form");
                     $.ajax({
-                        url: "/response/" + response_id,
+                        url: "/response/" + responseId,
                         type: "PATCH",
                         data: form.serializeArray(),
                         success: function (response) {
@@ -450,8 +452,8 @@ $(function () {
         }
     }
 
-    function setDeleteResponseWorkflow(response_id) {
-        var responseModal = $("#response-modal-" + response_id);
+    function setDeleteResponseWorkflow(responseId) {
+        var responseModal = $("#response-modal-" + responseId);
         var deleteSection = responseModal.find(".delete");
         var defaultSection = responseModal.find(".default");
 
@@ -462,7 +464,7 @@ $(function () {
             e.preventDefault();
         });
 
-        var deleteConfirmString = sprintf("%s:%s", request_id, response_id);
+        var deleteConfirmString = sprintf("%s:%s", requestId, responseId);
         deleteConfirmCheck.on("input", function() {
             if ($(this).val() === deleteConfirmString) {
                 deleteConfirm.attr("disabled", false);
@@ -487,7 +489,7 @@ $(function () {
         responseModal.find(".delete-confirm").click(function() {
             deleteConfirm.attr("disabled", true);
             $.ajax({
-                url: "/response/" + response_id,
+                url: "/response/" + responseId,
                 type: "PATCH",
                 data: {
                     deleted: true,

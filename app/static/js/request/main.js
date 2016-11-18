@@ -47,7 +47,7 @@ function regexUrlChecker (value) {
 /* jquery datepicker */
 
 // An array of holiday dates to be disabled
-var holiday_dates = null;
+var holidayDates = null;
 
 function beforeShowDayNotHolidayOrWeekend(date) {
     /*
@@ -55,11 +55,11 @@ function beforeShowDayNotHolidayOrWeekend(date) {
      *
      * WARNING:
      * --------
-     * "holiday_dates" must be set globally before calling this function.
+     * "holidayDates" must be set globally before calling this function.
      */
     var formattedDate = $.datepicker.formatDate("yy-mm-dd", date);
-    var holiday_or_weekend = $.inArray(formattedDate, holiday_dates) !== -1 ||
+    var holidayOrWeekend = $.inArray(formattedDate, holidayDates) !== -1 ||
             date.getDay() === 0 || date.getDay() === 6;
     // TODO: would be nice to display the name of the holiday (tooltip)
-    return [!holiday_or_weekend];
+    return [!holidayOrWeekend];
 }
