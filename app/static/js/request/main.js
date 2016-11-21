@@ -1,6 +1,6 @@
 $(function() {
     $(".disable-enter-submit").keypress(function(e){
-        if (e.keyCode == "13") {
+        if (e.keyCode === "13") {
            e.preventDefault();
         }
     });
@@ -24,7 +24,7 @@ function characterCounter (target, limit, currentLength) {
      * */
     var length = limit - currentLength;
     $(target).text(length + " characters remaining");
-    if (length == 0) {
+    if (length === 0) {
         $(target).css("color", "red");
     }
     else {

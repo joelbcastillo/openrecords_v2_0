@@ -145,7 +145,7 @@ function pollUploadStatus(uploadFilename, htmlId, requestId, forUpdate, nextButt
                 setRemoveBtn(requestId, tr.find(".remove-post-fileupload"),
                     false);  // file already deleted
             }
-            else if (response.status != "ready") {
+            else if (response.status !== "ready") {
                 setTimeout(pollUploadStatus.bind(
                     null, uploadFilename, htmlId, requestId, forUpdate, nextButton
                 ), 2000);

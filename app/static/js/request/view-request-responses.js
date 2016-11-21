@@ -36,7 +36,7 @@ function previousResponses() {
         }
         document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     }
-    if (requestResponsesIndex == requestResponses.length - requestResponsesIndexShift) {
+    if (requestResponsesIndex === requestResponses.length - requestResponsesIndexShift) {
         $(".load-more-responses").show();
     } else {
         $(".load-more-responses").hide();
@@ -45,7 +45,7 @@ function previousResponses() {
 
 // replaces currently displayed responses with next 10 responses
 function nextResponses() {
-    if (requestResponsesIndex != requestResponses.length - requestResponsesIndexShift) {
+    if (requestResponsesIndex !== requestResponses.length - requestResponsesIndexShift) {
         requestResponsesIndex = requestResponsesIndex + requestResponsesIndexShift;
         var requestResponsesHtml = "<table class='table'> <tbody>";
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {

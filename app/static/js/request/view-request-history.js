@@ -46,7 +46,7 @@ function previousHistory() {
 
 // replaces currently displayed history events with next 5 history events
 function nextHistory() {
-    if (requestHistoryIndex != requestHistory.length - requestHistoryIndexShift) {
+    if (requestHistoryIndex !== requestHistory.length - requestHistoryIndexShift) {
         requestHistoryIndex = requestHistoryIndex + requestHistoryIndexShift;
         var requestHistoryHtml = "<table class='table'> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
