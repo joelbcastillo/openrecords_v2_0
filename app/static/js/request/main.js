@@ -1,6 +1,6 @@
 $(function() {
     $(".disable-enter-submit").keypress(function(e){
-        if (e.keyCode == '13') {
+        if (e.keyCode == "13") {
            e.preventDefault();
         }
     });
@@ -57,7 +57,7 @@ function beforeShowDayNotHolidayOrWeekend(date) {
      * --------
      * 'holidayDates' must be set globally before calling this function.
      */
-    var formattedDate = $.datepicker.formatDate('yy-mm-dd', date);
+    var formattedDate = $.datepicker.formatDate("yy-mm-dd", date);
     var holidayOrWeekend = $.inArray(formattedDate, holidayDates) !== -1 ||
             date.getDay() === 0 || date.getDay() === 6;
     // TODO: would be nice to display the name of the holiday (tooltip)

@@ -106,8 +106,8 @@ navButtons.find(".next").click(function () {
 
 // TODO: DELETE "updated" on modal close and reset / refresh page (wait until all responses ready)
 
-function setEditResponseWorkflow(responseId, response_type) {
-    // FIXME: if response_type does not need email workflow, some of these elements won"t be found!
+function setEditResponseWorkflow(responseId, responseType) {
+    // FIXME: if responseType does not need email workflow, some of these elements won"t be found!
 
     var responseModal = $("#response-modal-" + responseId);
 
@@ -133,7 +133,7 @@ function setEditResponseWorkflow(responseId, response_type) {
         height: 180
     });
 
-    switch (response_type) {
+    switch (responseType) {
         case "files":  // TODO: constants?
             next1.click(function (e) {
                 // Validate fileupload form
@@ -340,7 +340,7 @@ function setEditResponseWorkflow(responseId, response_type) {
                 "Note content must be less than 500 characters");
 
             $(first.find(".note-content")).keyup(function () {
-                characterCounter(first.find(".note-content-character-count"), 500, $(this).val().length)
+                characterCounter(first.find(".note-content-character-count"), 500, $(this).val().length);
             });
 
             break;
@@ -446,7 +446,7 @@ function setEditResponseWorkflow(responseId, response_type) {
                 "Instruction content must be less than 500 characters");
 
             $(first.find(".instruction-content")).keyup(function () {
-                characterCounter(first.find(".instruction-content-character-count"), 500, $(this).val().length)
+                characterCounter(first.find(".instruction-content-character-count"), 500, $(this).val().length);
             });
 
             break;
@@ -520,7 +520,7 @@ function setEditResponseWorkflow(responseId, response_type) {
 
             prev2.click(function () {
                 second.hide();
-                first.show()
+                first.show();
             });
 
             prev3.click(function () {
@@ -561,7 +561,7 @@ function setEditResponseWorkflow(responseId, response_type) {
 
             // Set character counter for link title
             first.find(".title").keyup(function () {
-                characterCounter(first.find(".link-title-character-count"), 90, $(this).val().length)
+                characterCounter(first.find(".link-title-character-count"), 90, $(this).val().length);
             });
 
             // Set character counter for link url
@@ -623,7 +623,7 @@ function setDeleteResponseWorkflow(responseId) {
                 location.reload();
             },
             error: function (error) {
-                console.log(error)
+                console.log(error);
             }
         })
     });

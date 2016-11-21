@@ -15,7 +15,7 @@ $(document).ready(function () {
         data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
             requestHistory = data.requestHistory;
-            var requestHistoryHtml = "<table class="table"> <tbody>";
+            var requestHistoryHtml = "<table class='table'> <tbody>";
             for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
                 requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
             }
@@ -31,7 +31,7 @@ $(document).ready(function () {
 function previousHistory() {
     if (requestHistoryIndex != 0) {
         requestHistoryIndex = requestHistoryIndex - requestHistoryIndexShift;
-        var requestHistoryHtml = "<table class="table"> <tbody>";
+        var requestHistoryHtml = "<table class='table'> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
             requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
         }
@@ -48,7 +48,7 @@ function previousHistory() {
 function nextHistory() {
     if (requestHistoryIndex != requestHistory.length - requestHistoryIndexShift) {
         requestHistoryIndex = requestHistoryIndex + requestHistoryIndexShift;
-        var requestHistoryHtml = "<table class="table"> <tbody>";
+        var requestHistoryHtml = "<table class='table'> <tbody>";
         for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
             requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
         }
@@ -70,7 +70,7 @@ function loadMoreHistory() {
         data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
             requestHistory = data.requestHistory;
-            var requestHistoryHtml = "<table class="table"> <tbody>";
+            var requestHistoryHtml = "<table class='table'> <tbody>";
             for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
                 requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
             }

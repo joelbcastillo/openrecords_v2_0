@@ -2,7 +2,7 @@
 
 function bindFileUpload(target,
                         requestId,
-                        for_update,
+                        forUpdate,
                         uploadTemplateId,
                         downloadTemplateId,
                         nextButton) {
@@ -11,7 +11,7 @@ function bindFileUpload(target,
 
     @param {string} target - jquery selector string (ex. "#fileupload")
     @param {string} requestId - FOIL request id
-    @param {bool} for_update - editing a file?
+    @param {bool} forUpdate - editing a file?
     @param {string} uploadTemplateId - jquery file upload uploadTemplateId
     @param {string} downloadTemplateId - jquery file upload downloadTemplateId
     @param {selector} nextButton - jquery selector for next button of file response workflow
@@ -23,7 +23,7 @@ function bindFileUpload(target,
     $(target).fileupload({
         //xhrFields: {withCredentials: true},  // send cross-domain cookies
         url: "/upload/" + requestId,
-        formData: for_update ? {update: true} : {},
+        formData: forUpdate ? {update: true} : {},
         uploadTemplateId: uploadTemplateId,
         downloadTemplateId: downloadTemplateId,
         maxChunkSize: 512000,  // 512 kb
@@ -56,23 +56,23 @@ function bindFileUpload(target,
             var idVal = encodeName(file.name);
             data.result.files[0].identifier = idVal;
             setTimeout(
-                pollUploadStatus.bind(null, file.name, idVal, requestId, for_update, nextButton),
+                pollUploadStatus.bind(null, file.name, idVal, requestId, forUpdate, nextButton),
                 4000);  // McAfee Scanner minimum 3+ second startup
         }
         else {
             // Re-enable 'next' button
-            if (for_update) {
-                $(nextButton).attr('enabled', true);
+            if (forUpdate) {
+                $(nextButton).attr("enabled", true);
             }
         }
     }).bind("fileuploadadd", function (e, data) {
-        if (for_update) {
+        if (forUpdate) {
             // Replace added file OR Delete uploaded file
             var elemFiles = $(target).find(".files");
-            var templates_upload = elemFiles.children(".template-upload");
+            var templatesUpload = elemFiles.children(".template-upload");
             var templatesDownload = elemFiles.children(".template-download");
-            if (templates_upload.length > 0) {
-                templates_upload.remove();
+            if (templatesUpload.length > 0) {
+                templatesUpload.remove();
             }
             if (templatesDownload.length > 0) {
                 for (var i = 0; i < templatesDownload.length; i++) {
@@ -103,7 +103,7 @@ function bindFileUpload(target,
         $(".fileupload-process").hide();
     }).bind("fileuploadstarted", function (e, data) {
         // Disable 'next' button
-        if (for_update) {
+        if (forUpdate) {
             $(nextButton).attr("disabled", true);
         }
     });
@@ -157,7 +157,7 @@ function pollUploadStatus(uploadFilename, htmlId, requestId, forUpdate, nextButt
                 setRemoveBtn(requestId, tr.find(".remove-post-fileupload"), true, forUpdate);
                 if (forUpdate) {
                     // Enable 'next' button
-                    $(nextButton).attr('disabled', false)
+                    $(nextButton).attr("disabled", false);
                 }
             }
         }
@@ -166,17 +166,17 @@ function pollUploadStatus(uploadFilename, htmlId, requestId, forUpdate, nextButt
 
 function deleteUpload(requestId,
                       filecode,
-                      updated_only,
-                      quarantined_only) {
+                      updatedOnly,
+                      quarantinedOnly) {
     /*
     Send a DELETE request to the upload endpoint.
      */
     var data = {};
-    if (updated_only) {
-        data = {updated_only: true}
+    if (updatedOnly) {
+        data = {updated_only: true};
     }
-    else if (quarantined_only) {
-        data = {quarantined_only: true}
+    else if (quarantinedOnly) {
+        data = {quarantined_only: true};
     }
 
     $.ajax({
