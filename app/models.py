@@ -373,7 +373,7 @@ class Requests(db.Model):
 
     def __init__(
             self,
-            id,
+            id_,
             title,
             description,
             agency_ein,
@@ -385,7 +385,7 @@ class Requests(db.Model):
             status=request_status.OPEN,
             agency_description=None
     ):
-        self.id = id
+        self.id = id_
         self.title = title
         self.description = description
         self.agency_ein = agency_ein
@@ -425,7 +425,7 @@ class Requests(db.Model):
         es.update(
             index=INDEX,
             doc_type='request',
-            id=self.id,
+            id=self.id_,
             body={
                 'doc': {
                     'title': self.title,
@@ -447,7 +447,7 @@ class Requests(db.Model):
         es.create(
             index=INDEX,
             doc_type='request',
-            id=self.id,
+            id=self.id_,
             body={
                 'title': self.title,
                 'description': self.description,
@@ -466,7 +466,7 @@ class Requests(db.Model):
         )
 
     def __repr__(self):
-        return '<Requests %r>' % self.id
+        return '<Requests %r>' % self.id_
 
 
 class Events(db.Model):
@@ -484,7 +484,7 @@ class Events(db.Model):
     new_value - a string containing the new value of the event
     """
     __tablename__ = 'events'
-    id = db.Column(db.Integer, primary_key=True)
+    id_ = db.Column(db.Integer, primary_key=True)
     request_id = db.Column(db.String(19), db.ForeignKey('requests.id'))
     user_id = db.Column(db.String(64))  # who did the action
     auth_user_type = db.Column(
@@ -512,7 +512,7 @@ class Events(db.Model):
     )
 
     def __repr__(self):
-        return '<Events %r>' % self.id
+        return '<Events %r>' % self.id_
 
 
 class Responses(db.Model):
@@ -527,7 +527,7 @@ class Responses(db.Model):
     privacy - an Enum containing the privacy options for a response
     """
     __tablename__ = 'responses'
-    id = db.Column(db.Integer, primary_key=True)
+    id_ = db.Column(db.Integer, primary_key=True)
     request_id = db.Column(db.String(19), db.ForeignKey('requests.id'))
     privacy = db.Column(db.Enum(
         response_privacy.PRIVATE,
@@ -580,7 +580,7 @@ class Responses(db.Model):
         return val
 
     def __repr__(self):
-        return '<Responses %r>' % self.id
+        return '<Responses %r>' % self.id_
 
 
 class Reasons(db.Model):
@@ -592,7 +592,7 @@ class Reasons(db.Model):
     deny_reason - a string containing the message that will be shown when a request is denied
     """
     __tablename__ = 'reasons'
-    id = db.Column(db.Integer, primary_key=True)
+    id_ = db.Column(db.Integer, primary_key=True)
     agency = db.Column(db.Integer, db.ForeignKey('agencies.ein'), nullable=True)
     deny_reason = db.Column(db.String)  # reasons for denying a request based off law dept's responses
 
@@ -659,7 +659,7 @@ class ResponseTokens(db.Model):
     expiration_date - a datetime object containing the date at which this token becomes invalid
     """
     __tablename__ = 'response_tokens'
-    id = db.Column(db.Integer, primary_key=True)
+    id_ = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String, nullable=False)
     response_id = db.Column(db.Integer, db.ForeignKey("responses.id"), nullable=False)
     expiration_date = db.Column(db.DateTime)
@@ -688,7 +688,7 @@ class Notes(Responses):
     """
     __tablename__ = response_type.NOTE
     __mapper_args__ = {'polymorphic_identity': response_type.NOTE}
-    id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
+    id_ = db.Column(db.Integer, db.ForeignKey(Responses.id_), primary_key=True)
     content = db.Column(db.String(5000))
 
     def __init__(self,
@@ -719,7 +719,7 @@ class Files(Responses):
     """
     __tablename__ = response_type.FILE
     __mapper_args__ = {'polymorphic_identity': response_type.FILE}
-    id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
+    id_ = db.Column(db.Integer, db.ForeignKey(Responses.id_), primary_key=True)
     title = db.Column(db.String)
     name = db.Column(db.String)
     mime_type = db.Column(db.String)
@@ -759,7 +759,7 @@ class Links(Responses):
     """
     __tablename__ = response_type.LINK
     __mapper_args__ = {'polymorphic_identity': response_type.LINK}
-    id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
+    id_ = db.Column(db.Integer, db.ForeignKey(Responses.id_), primary_key=True)
     title = db.Column(db.String)
     url = db.Column(db.String)
 
@@ -789,7 +789,7 @@ class Instructions(Responses):
     """
     __tablename__ = response_type.INSTRUCTIONS
     __mapper_args__ = {'polymorphic_identity': response_type.INSTRUCTIONS}
-    id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
+    id_ = db.Column(db.Integer, db.ForeignKey(Responses.id_), primary_key=True)
     content = db.Column(db.String)
 
     def __init__(self,
@@ -826,7 +826,7 @@ class Determinations(Responses):
     """
     __tablename__ = response_type.DETERMINATION
     __mapper_args__ = {'polymorphic_identity': response_type.DETERMINATION}
-    id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
+    id_ = db.Column(db.Integer, db.ForeignKey(Responses.id_), primary_key=True)
     dtype = db.Column(db.Enum(
         determination_type.DENIAL,
         determination_type.ACKNOWLEDGMENT,
@@ -886,7 +886,7 @@ class Emails(Responses):
     """
     __tablename__ = response_type.EMAIL
     __mapper_args__ = {'polymorphic_identity': response_type.EMAIL}
-    id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
+    id_ = db.Column(db.Integer, db.ForeignKey(Responses.id_), primary_key=True)
     to = db.Column(db.String)
     cc = db.Column(db.String)
     bcc = db.Column(db.String)

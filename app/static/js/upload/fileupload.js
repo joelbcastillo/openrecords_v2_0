@@ -1,7 +1,7 @@
 "use strict";
 
 function bindFileUpload(target,
-                        request_id,
+                        requestId,
                         for_update,
                         uploadTemplateId,
                         downloadTemplateId,
@@ -10,7 +10,7 @@ function bindFileUpload(target,
     Binds jquery file upload to the element identified by 'target'
 
     @param {string} target - jquery selector string (ex. "#fileupload")
-    @param {string} request_id - FOIL request id
+    @param {string} requestId - FOIL request id
     @param {bool} for_update - editing a file?
     @param {string} uploadTemplateId - jquery file upload uploadTemplateId
     @param {string} downloadTemplateId - jquery file upload downloadTemplateId
@@ -22,7 +22,7 @@ function bindFileUpload(target,
 
     $(target).fileupload({
         //xhrFields: {withCredentials: true},  // send cross-domain cookies
-        url: "/upload/" + request_id,
+        url: "/upload/" + requestId,
         formData: for_update ? {update: true} : {},
         uploadTemplateId: uploadTemplateId,
         downloadTemplateId: downloadTemplateId,
@@ -39,13 +39,13 @@ function bindFileUpload(target,
             if (data.result) {
                 if (data.result.files[0].error) {
                     data.context[0].abortChunkSend = true;
-                    data.files[0].error = data.result.files[0].error
+                    data.files[0].error = data.result.files[0].error;
                 }
             }
         },
         chunkfail: function (e, data) {
             // remove existing partial upload
-            deleteUpload(request_id, encodeName(data.files[0].name), false, true);
+            deleteUpload(requestId, encodeName(data.files[0].name), false, true);
         }
     }).bind("fileuploaddone", function (e, data) {
         // blueimp says that this will only be called on a successful upload
@@ -56,7 +56,7 @@ function bindFileUpload(target,
             var idVal = encodeName(file.name);
             data.result.files[0].identifier = idVal;
             setTimeout(
-                pollUploadStatus.bind(null, file.name, idVal, request_id, for_update, nextButton),
+                pollUploadStatus.bind(null, file.name, idVal, requestId, for_update, nextButton),
                 4000);  // McAfee Scanner minimum 3+ second startup
         }
         else {
@@ -68,20 +68,20 @@ function bindFileUpload(target,
     }).bind("fileuploadadd", function (e, data) {
         if (for_update) {
             // Replace added file OR Delete uploaded file
-            var elem_files = $(target).find(".files");
-            var templates_upload = elem_files.children(".template-upload");
-            var templates_download = elem_files.children(".template-download");
+            var elemFiles = $(target).find(".files");
+            var templates_upload = elemFiles.children(".template-upload");
+            var templatesDownload = elemFiles.children(".template-download");
             if (templates_upload.length > 0) {
                 templates_upload.remove();
             }
-            if (templates_download.length > 0) {
-                for (var i = 0; i < templates_download.length; i++) {
-                    var file_identifier = $(templates_download[i]).attr("id");
-                    if (typeof file_identifier != "undefined") {
+            if (templatesDownload.length > 0) {
+                for (var i = 0; i < templatesDownload.length; i++) {
+                    var fileIdentifier = $(templatesDownload[i]).attr("id");
+                    if (typeof fileIdentifier != "undefined") {
                         // if this template is for a successful upload
-                        deleteUpload(request_id, file_identifier, true);
+                        deleteUpload(requestId, fileIdentifier, true);
                     }
-                    $(templates_download[i]).remove();
+                    $(templatesDownload[i]).remove();
                 }
             }
         }
@@ -104,7 +104,7 @@ function bindFileUpload(target,
     }).bind("fileuploadstarted", function (e, data) {
         // Disable 'next' button
         if (for_update) {
-            $(nextButton).attr('disabled', true);
+            $(nextButton).attr("disabled", true);
         }
     });
 }
@@ -119,7 +119,7 @@ function encodeName(name) {
     return window.btoa(name).replace(/=/g, "");
 }
 
-function pollUploadStatus(upload_filename, htmlId, request_id, for_update, nextButton) {
+function pollUploadStatus(uploadFilename, htmlId, requestId, forUpdate, nextButton) {
     /*
     Sends a request to the upload status endpoint
     every 2 seconds until it receives a message indicating
@@ -130,9 +130,9 @@ function pollUploadStatus(upload_filename, htmlId, request_id, for_update, nextB
         type: "GET",
         url: "/upload/status",
         data: {
-            request_id: request_id,
-            filename: upload_filename,
-            for_update: for_update
+            request_id: requestId,
+            filename: uploadFilename,
+            for_update: forUpdate
         },
         dataType: "json",
         success: function(response) {
@@ -142,20 +142,20 @@ function pollUploadStatus(upload_filename, htmlId, request_id, for_update, nextB
                 tr.find(".error-post-fileupload").removeClass("hidden");
                 tr.find(".error-post-fileupload-msg").text("Error processing file.");  // scanning, really
                 tr.find(".processing-upload").remove();
-                setRemoveBtn(request_id, tr.find(".remove-post-fileupload"),
+                setRemoveBtn(requestId, tr.find(".remove-post-fileupload"),
                     false);  // file already deleted
             }
             else if (response.status != "ready") {
                 setTimeout(pollUploadStatus.bind(
-                    null, upload_filename, htmlId, request_id, for_update, nextButton
+                    null, uploadFilename, htmlId, requestId, forUpdate, nextButton
                 ), 2000);
             }
             else {
                 // Reveal full template
                 tr.find(".fileupload-input-fields").removeClass("hidden");
                 tr.find(".processing-upload").remove();
-                setRemoveBtn(request_id, tr.find(".remove-post-fileupload"), true, for_update);
-                if (for_update) {
+                setRemoveBtn(requestId, tr.find(".remove-post-fileupload"), true, forUpdate);
+                if (forUpdate) {
                     // Enable 'next' button
                     $(nextButton).attr('disabled', false)
                 }
@@ -164,7 +164,7 @@ function pollUploadStatus(upload_filename, htmlId, request_id, for_update, nextB
     });
 }
 
-function deleteUpload(request_id,
+function deleteUpload(requestId,
                       filecode,
                       updated_only,
                       quarantined_only) {
@@ -182,12 +182,12 @@ function deleteUpload(request_id,
     $.ajax({
         type: "DELETE",
         url: sprintf("/upload/request/%s/%s",
-            request_id, filecode),
+            requestId, filecode),
         data: data
     });
 }
 
-function setRemoveBtn(request_id, button, sendDelete, for_update) {
+function setRemoveBtn(requestId, button, sendDelete, forUpdate) {
     /*
     Reveal remove button and set its click event handler.
      */
@@ -197,7 +197,7 @@ function setRemoveBtn(request_id, button, sendDelete, for_update) {
         e.preventDefault();
         var template = $(this).closest(".template-download");
         if (sendDelete) {
-            deleteUpload(request_id, template.attr("id"), for_update);
+            deleteUpload(requestId, template.attr("id"), forUpdate);
         }
         template.remove();
     });

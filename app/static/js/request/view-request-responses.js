@@ -5,19 +5,19 @@ var requestResponses; // initialize variable to store list of responses
 var requestResponsesIndexShift = 10; // index number used to increment or decrement requestResponsesIndex
 var responses = null;
 var index = 0;
-var index_increment = 10;
+var indexIncrement = 10;
 
-var request_id = $('#request-id').text();
+var requestId = $("#request-id").text();
 
 // get first set of responses on page load
 $.ajax({
-    url: '/request/api/v1.0/responses',
+    url: "/request/api/v1.0/responses",
     data: {requestResponsesReloadIndex: requestResponsesReloadIndex},
     success: function (data) {
         requestResponses = data.requestResponses;
-        var requestResponsesHtml = '<table class="table"> <tbody>';
+        var requestResponsesHtml = "<table class='table'> <tbody>";
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-            requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+            requestResponsesHtml = requestResponsesHtml + "<tr> <td>" + requestResponses[i] + "<button style='float: right;' type='button' class='btn btn-secondary btn-sm'>Edit</button> </td> </tr>";
         }
         document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     },
@@ -30,9 +30,9 @@ $.ajax({
 function previousResponses() {
     if (requestResponsesIndex != 0) {
         requestResponsesIndex = requestResponsesIndex - requestResponsesIndexShift;
-        var requestResponsesHtml = '<table class="table"> <tbody>';
+        var requestResponsesHtml = "<table class='table'> <tbody>";
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-            requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+            requestResponsesHtml = requestResponsesHtml + "<tr> <td>" + requestResponses[i] + "<button style='float: right;' type='button' class='btn btn-secondary btn-sm'>Edit</button> </td> </tr>";
         }
         document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     }
@@ -47,9 +47,9 @@ function previousResponses() {
 function nextResponses() {
     if (requestResponsesIndex != requestResponses.length - requestResponsesIndexShift) {
         requestResponsesIndex = requestResponsesIndex + requestResponsesIndexShift;
-        var requestResponsesHtml = '<table class="table"> <tbody>';
+        var requestResponsesHtml = "<table class='table'> <tbody>";
         for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-            requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+            requestResponsesHtml = requestResponsesHtml + "<tr> <td>" + requestResponses[i] + "<button style='float: right;' type='button' class='btn btn-secondary btn-sm'>Edit</button> </td> </tr>";
         }
         document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
     }
@@ -66,13 +66,13 @@ function loadMoreResponses() {
     requestResponsesReloadIndex++;
     $.ajax({
         type: "POST",
-        url: '/request/api/v1.0/responses',
+        url: "/request/api/v1.0/responses",
         data: {requestResponsesReloadIndex: requestResponsesReloadIndex},
         success: function (data) {
             requestResponses = data.requestResponses;
             var requestResponsesHtml = "<table class='table'> <tbody>";
             for (var i = requestResponsesIndex; i < requestResponsesIndex + requestResponsesIndexShift; i++) {
-                requestResponsesHtml = requestResponsesHtml + '<tr> <td>' + requestResponses[i] + '<button style="float: right;" type="button" class="btn btn-secondary btn-sm">Edit</button> </td> </tr>';
+                requestResponsesHtml = requestResponsesHtml + "<tr> <td>" + requestResponses[i] + "<button style='float: right;' type='button' class='btn btn-secondary btn-sm'>Edit</button> </td> </tr>";
             }
             document.getElementById("request-responses-table").innerHTML = requestResponsesHtml;
         },
@@ -82,34 +82,34 @@ function loadMoreResponses() {
     })
 }
 
-var nav_buttons = $('#responses-nav-buttons');
+var navButtons = $("#responses-nav-buttons");
 
 // replaces currently displayed responses with previous 10 responses
-nav_buttons.find('.prev').click(function () {
+navButtons.find(".prev").click(function () {
     if (index !== 0) {
-        index -= index_increment;
+        index -= indexIncrement;
         showResponses();
     }
 });
 
 // replaces currently displayed responses with next 10 responses
-nav_buttons.find('.next').click(function () {
-    index += index_increment;
-    if (index == responses.length - index_increment) {
+navButtons.find(".next").click(function () {
+    index += indexIncrement;
+    if (index == responses.length - indexIncrement) {
         loadMoreResponses();
     }
     if (responses.length < index) {
-        index -= index_increment;
+        index -= indexIncrement;
     }
     showResponses();
 });
 
-// TODO: DELETE 'updated' on modal close and reset / refresh page (wait until all responses ready)
+// TODO: DELETE "updated" on modal close and reset / refresh page (wait until all responses ready)
 
-function setEditResponseWorkflow(response_id, response_type) {
-    // FIXME: if response_type does not need email workflow, some of these elements won't be found!
+function setEditResponseWorkflow(responseId, response_type) {
+    // FIXME: if response_type does not need email workflow, some of these elements won"t be found!
 
-    var responseModal = $("#response-modal-" + response_id);
+    var responseModal = $("#response-modal-" + responseId);
 
     var first = responseModal.find(".first");
     var second = responseModal.find(".second");
@@ -127,7 +127,7 @@ function setEditResponseWorkflow(response_id, response_type) {
         menubar: false,
         // sets tinymce to enable only on specific textareas classes
         mode: "specific_textareas",
-        // selector for tinymce textarea classes is set to 'tinymce-area'
+        // selector for tinymce textarea classes is set to "tinymce-area"
         editor_selector: "tinymce-area",
         elementpath: false,
         height: 180
@@ -150,7 +150,7 @@ function setEditResponseWorkflow(response_id, response_type) {
 
                 // Do not proceed if files with error are not removed
                 if (first.find(".upload-error").length > 0 ||
-                    first.find(".error-post-fileupload").is(':visible')) {
+                    first.find(".error-post-fileupload").is(":visible")) {
                     first.find(".fileupload-error-messages").text(
                         "Files with Errors must be removed").show();
                     e.preventDefault();
@@ -165,13 +165,13 @@ function setEditResponseWorkflow(response_id, response_type) {
                         url: "/response/email",
                         type: "POST",
                         data: {
-                            request_id: request_id,
+                            request_id: requestId,
                             template_name: "email_response_file.html",
                             type: "files"
                         },
                         success: function (data) {
                             // Data should be html template page.
-                            tinyMCE.get("email-content-" + response_id).setContent(data.template);
+                            tinyMCE.get("email-content-" + responseId).setContent(data.template);
                         }
                     });
                 }
@@ -198,11 +198,11 @@ function setEditResponseWorkflow(response_id, response_type) {
                     url: "/response/email",
                     type: "POST",
                     data: {
-                        request_id: request_id,
+                        request_id: requestId,
                         template_name: "email_response_file.html",
                         type: "files",
                         files: JSON.stringify(files),
-                        email_content: $("#email-content-" + response_id).val()
+                        email_content: $("#email-content-" + responseId).val()
                     },
                     success: function (data) {
                         // Data should be html template page.
@@ -213,7 +213,7 @@ function setEditResponseWorkflow(response_id, response_type) {
             });
 
             prev2.click(function () {
-                first.find('.fileupload-error-messages').hide();
+                first.find(".fileupload-error-messages").hide();
                 second.hide();
                 first.show();
             });
@@ -228,7 +228,7 @@ function setEditResponseWorkflow(response_id, response_type) {
                 $(this).attr("disabled", true);
                 var form = first.find("form");
                 $.ajax({
-                    url: "/response/" + response_id,
+                    url: "/response/" + responseId,
                     type: "PATCH",
                     data: form.serializeArray(), // TODO: remove hidden email summaries
                     success: function () {
@@ -252,11 +252,11 @@ function setEditResponseWorkflow(response_id, response_type) {
                         url: "/response/email",
                         type: "POST",
                         data: {
-                            request_id: request_id,
+                            request_id: requestId,
                             template_name: "email_edit_response.html",
                             type: "edit",
-                            response_id: response_id,
-                            content: first.find('.note-content').val(),
+                            response_id: responseId,
+                            content: first.find(".note-content").val(),
                             privacy: first.find("input[name=privacy]:checked").val(),
                             confirmation: false
                         },
@@ -270,7 +270,7 @@ function setEditResponseWorkflow(response_id, response_type) {
                                 second.show();
                                 first.find(".note-error-messages").text(
                                     data.error).hide();
-                                tinyMCE.get("email-content-" + response_id).setContent(data.template);
+                                tinyMCE.get("email-content-" + responseId).setContent(data.template);
                             }
                         }
                     });
@@ -287,14 +287,14 @@ function setEditResponseWorkflow(response_id, response_type) {
                     url: "/response/email",
                     type: "POST",
                     data: {
-                        request_id: request_id,
+                        request_id: requestId,
                         template_name: "email_edit_response.html",
                         type: "edit",
-                        response_id: response_id,
+                        response_id: responseId,
                         content: first.find(".note-content").val(),
                         privacy: first.find("input[name=privacy]:checked").val(),
                         confirmation: true,
-                        email_content: $("#email-content-" + response_id).val()
+                        email_content: $("#email-content-" + responseId).val()
                     },
                     success: function (data) {
                         third.find(".confirmation-header").text(data.header);
@@ -318,7 +318,7 @@ function setEditResponseWorkflow(response_id, response_type) {
                 $(this).attr("disabled", true);
                 var form = first.find("form");
                 $.ajax({
-                    url: "/response/" + response_id,
+                    url: "/response/" + responseId,
                     type: "PATCH",
                     data: form.serializeArray(),
                     success: function (response) {
@@ -328,15 +328,15 @@ function setEditResponseWorkflow(response_id, response_type) {
             });
 
             // Apply parsley data required validation to note content
-            first.find('.note-content').attr("data-parsley-required", "");
+            first.find(".note-content").attr("data-parsley-required", "");
 
             // Apply parsley max length validation to note content
-            first.find('.note-content').attr("data-parsley-maxlength", "500");
+            first.find(".note-content").attr("data-parsley-maxlength", "500");
 
             // Apply custom validation messages
-            first.find('.note-content').attr("data-parsley-required-message",
+            first.find(".note-content").attr("data-parsley-required-message",
                 "Note content must be provided");
-            first.find('.note-content').attr("data-parsley-maxlength-message",
+            first.find(".note-content").attr("data-parsley-maxlength-message",
                 "Note content must be less than 500 characters");
 
             $(first.find(".note-content")).keyup(function () {
@@ -355,11 +355,11 @@ function setEditResponseWorkflow(response_id, response_type) {
                         url: "/response/email",
                         type: "POST",
                         data: {
-                            request_id: request_id,
+                            request_id: requestId,
                             template_name: "email_edit_response.html",
                             type: "edit",
-                            response_id: response_id,
-                            content: first.find('.instruction-content').val(),
+                            response_id: responseId,
+                            content: first.find(".instruction-content").val(),
                             privacy: first.find("input[name=privacy]:checked").val(),
                             confirmation: false
                         },
@@ -373,7 +373,7 @@ function setEditResponseWorkflow(response_id, response_type) {
                                 second.show();
                                 first.find(".instruction-error-messages").text(
                                     data.error).hide();
-                                tinyMCE.get("email-content-" + response_id).setContent(data.template);
+                                tinyMCE.get("email-content-" + responseId).setContent(data.template);
                             }
                         }
                     });
@@ -390,14 +390,14 @@ function setEditResponseWorkflow(response_id, response_type) {
                     url: "/response/email",
                     type: "POST",
                     data: {
-                        request_id: request_id,
+                        request_id: requestId,
                         template_name: "email_edit_response.html",
                         type: "edit",
-                        response_id: response_id,
+                        response_id: responseId,
                         content: first.find(".instruction-content").val(),
                         privacy: first.find("input[name=privacy]:checked").val(),
                         confirmation: true,
-                        email_content: $("#email-content-" + response_id).val()
+                        email_content: $("#email-content-" + responseId).val()
                     },
                     success: function (data) {
                         third.find(".confirmation-header").text(data.header);
@@ -424,7 +424,7 @@ function setEditResponseWorkflow(response_id, response_type) {
                 $(this).attr("disabled", true);
                 var form = first.find("form");
                 $.ajax({
-                    url: "/response/" + response_id,
+                    url: "/response/" + responseId,
                     type: "PATCH",
                     data: form.serializeArray(),
                     success: function (response) {
@@ -434,15 +434,15 @@ function setEditResponseWorkflow(response_id, response_type) {
             });
 
             // Apply parsley data required validation to instructions content
-            first.find('.instruction-content').attr("data-parsley-required", "");
+            first.find(".instruction-content").attr("data-parsley-required", "");
 
             // Apply parsley max length validation to instructions content
-            first.find('.instruction-content').attr("data-parsley-maxlength", "500");
+            first.find(".instruction-content").attr("data-parsley-maxlength", "500");
 
             // Apply custom validation messages
-            first.find('.instruction-content').attr("data-parsley-required-message",
+            first.find(".instruction-content").attr("data-parsley-required-message",
                 "Instruction content must be provided");
-            first.find('.instruction-content').attr("data-parsley-maxlength-message",
+            first.find(".instruction-content").attr("data-parsley-maxlength-message",
                 "Instruction content must be less than 500 characters");
 
             $(first.find(".instruction-content")).keyup(function () {
@@ -452,7 +452,7 @@ function setEditResponseWorkflow(response_id, response_type) {
             break;
 
         case "links":
-            first.find("input[name='url']").on('input', function () {
+            first.find("input[name='url'']").on("input", function () {
                 var urlVal = $(this).val();
                 first.find(".edit-link-href").attr("href", urlVal).text(urlVal);
             });
@@ -465,10 +465,10 @@ function setEditResponseWorkflow(response_id, response_type) {
                         url: "/response/email",
                         type: "POST",
                         data: {
-                            request_id: request_id,
+                            request_id: requestId,
                             template_name: "email_edit_response.html",
                             type: "edit",
-                            response_id: response_id,
+                            response_id: responseId,
                             title: first.find(".title").val(),
                             url: first.find(".url").val(),
                             privacy: first.find("input[name=privacy]:checked").val(),
@@ -484,7 +484,7 @@ function setEditResponseWorkflow(response_id, response_type) {
                                 second.show();
                                 first.find(".link-error-messages").text(
                                     data.error).hide();
-                                tinyMCE.get("email-content-" + response_id).setContent(data.template);
+                                tinyMCE.get("email-content-" + responseId).setContent(data.template);
                             }
                         }
                     });
@@ -501,15 +501,15 @@ function setEditResponseWorkflow(response_id, response_type) {
                     url: "/response/email",
                     type: "POST",
                     data: {
-                        request_id: request_id,
+                        request_id: requestId,
                         template_name: "email_edit_response.html",
                         type: "edit",
-                        response_id: response_id,
+                        response_id: responseId,
                         title: first.find(".title").val(),
                         url: first.find(".url").val(),
                         privacy: first.find("input[name=privacy]:checked").val(),
                         confirmation: true,
-                        email_content: $("#email-content-" + response_id).val()
+                        email_content: $("#email-content-" + responseId).val()
                     },
                     success: function (data) {
                         third.find(".confirmation-header").text(data.header);
@@ -533,7 +533,7 @@ function setEditResponseWorkflow(response_id, response_type) {
                 $(this).attr("disabled", true);
                 var form = first.find("form");
                 $.ajax({
-                    url: "/response/" + response_id,
+                    url: "/response/" + responseId,
                     type: "PATCH",
                     data: form.serializeArray(),
                     success: function (response) {
@@ -551,21 +551,21 @@ function setEditResponseWorkflow(response_id, response_type) {
             first.find(".url").attr("data-parsley-required", "254");
 
             // Apply custom validation messages
-            first.find('.title').attr('data-parsley-required-message', 'Link title must be provided.');
-            first.find('.url').attr('data-parsley-required-message', 'URL link must be provided.');
-            first.find('.title').attr('data-parsley-maxlength-message', 'Link title must be less than 90 characters.');
-            first.find('.url').attr('data-parsley-maxlength-message', 'URL link must be less than 254 characters.');
+            first.find(".title").attr("data-parsley-required-message", "Link title must be provided.");
+            first.find(".url").attr("data-parsley-required-message", "URL link must be provided.");
+            first.find(".title").attr("data-parsley-maxlength-message", "Link title must be less than 90 characters.");
+            first.find(".url").attr("data-parsley-maxlength-message", "URL link must be less than 254 characters.");
 
             // Custom validator to validate strict url using regexUrlChecker
-            first.find('.url').attr('data-parsley-urlstrict', '');
+            first.find(".url").attr("data-parsley-urlstrict", "");
 
             // Set character counter for link title
-            first.find('.title').keyup(function () {
+            first.find(".title").keyup(function () {
                 characterCounter(first.find(".link-title-character-count"), 90, $(this).val().length)
             });
 
             // Set character counter for link url
-            first.find('.url').keyup(function () {
+            first.find(".url").keyup(function () {
                 characterCounter(first.find(".link-url-character-count"), 254, $(this).val().length)
             });
 
@@ -576,19 +576,19 @@ function setEditResponseWorkflow(response_id, response_type) {
     }
 }
 
-function setDeleteResponseWorkflow(response_id) {
-    var responseModal = $("#response-modal-" + response_id);
+function setDeleteResponseWorkflow(responseId) {
+    var responseModal = $("#response-modal-" + responseId);
     var deleteSection = responseModal.find(".delete");
     var defaultSection = responseModal.find(".default");
 
     var deleteConfirmCheck = responseModal.find("input[name=delete-confirm-string]");
     var deleteConfirm = responseModal.find(".delete-confirm");
 
-    deleteConfirmCheck.on('paste', function (e) {
+    deleteConfirmCheck.on("paste", function (e) {
         e.preventDefault();
     });
 
-    var deleteConfirmString = sprintf("%s:%s", request_id, response_id);
+    var deleteConfirmString = sprintf("%s:%s", request_id, responseId);
     deleteConfirmCheck.on("input", function () {
         if ($(this).val() === deleteConfirmString) {
             deleteConfirm.attr("disabled", false);
@@ -607,13 +607,13 @@ function setDeleteResponseWorkflow(response_id) {
         deleteSection.hide();
         defaultSection.show();
 
-        deleteConfirmCheck.val('');
+        deleteConfirmCheck.val("");
     });
 
     responseModal.find(".delete-confirm").click(function () {
         deleteConfirm.attr("disabled", true);
         $.ajax({
-            url: "/response/" + response_id,
+            url: "/response/" + responseId,
             type: "PATCH",
             data: {
                 deleted: true,
