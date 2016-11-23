@@ -104,7 +104,7 @@ def create_request(title,
 
     # 5. Create Request
     request = Requests(
-        id=request_id,
+        _id=request_id,
         title=title,
         agency_ein=agency,
         description=description,
@@ -140,6 +140,7 @@ def create_request(title,
         upload_path = _move_validated_upload(request_id, upload_path)
 
         # 8. Create response object
+
         title = ''  # TODO: add optional title field to new-request page?
         name = os.path.basename(upload_path)
         mime_type = get_mime_type(request_id, upload_path)

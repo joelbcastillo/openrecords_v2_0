@@ -13,7 +13,7 @@ $(document).ready(function () {
         }
     });
     $("#fax").keypress(function(key) {
-        if (key.charCode != 0){
+        if (key.charCode !== 0){
             if (key.charCode < 48 || key.charCode > 57) {
                 key.preventDefault();
             }
@@ -56,9 +56,9 @@ $(document).ready(function () {
     // Apply parsley validation styles to the input forms for a new request.
 
     // Loop through required fields and apply a data-parsley-required attribute to them
-    var requiredFields = ["request-title","request-description", "request-agency_ein", "first-name","last-name","email",
+    var requiredFields = ["request-title","request-description", "request-agency", "first-name","last-name","email",
         "phone","fax","address-line-1", "city", "zipcode"];
-    for (i = 0 ; i < requiredFields.length ; i++){
+    for (var i = 0 ; i < requiredFields.length ; i++){
         $("#" + requiredFields[i]).attr("data-parsley-required","");
     }
 
@@ -88,7 +88,7 @@ $(document).ready(function () {
     // Contact information validation
     $("#email").attr("data-parsley-type", "email");
     // Checks that at least one form of contact was filled out in addition to the rest of the form.
-    $("#request-form").parsley().subscribe("parsley:form:validate", function () {
+    $("#request-form").parsley().on("form:validate", function () {
         // Re-apply validators to fields in the event that they were removed from previous validation requests.
         for (i = 0 ; i < requiredFields.length ; i++){
            $("#" + requiredFields[i]).attr("data-parsley-required","");
@@ -105,7 +105,7 @@ $(document).ready(function () {
             $("#fax").parsley().isValid() ||
             ($("#address-line-1").parsley().isValid() && $("#state").parsley().isValid() && $("#zipcode").parsley().isValid() && $("#city").parsley().isValid())
             &&
-            ($("#request-agency_ein").parsley().isValid() &&
+            ($("#request-agency").parsley().isValid() &&
             $("#request-title").parsley().isValid() &&
             $("#request-description").parsley().isValid() &&
             $("#first-name").parsley().isValid() &&
@@ -141,7 +141,17 @@ $(document).ready(function () {
 
     // Disable submit button on form submission
     $("#request-form").submit(function() {
-        $("#submit").prop("disabled", true);  // TODO: display a spinner
+        $("#submit").hide();
+        $("#processing-submission").show();
+    });
+
+    // Character count for creating a new request
+    $("#request-title").keyup(function () {
+        characterCounter("#title-character-count", 90, $(this).val().length);
+    });
+
+    $("#request-description").keyup(function () {
+        characterCounter("#description-character-count", 5000, $(this).val().length);
     });
 });
 

@@ -4,16 +4,16 @@
 $(document).ready(function () {
 
     // javascript to add tooltip popovers when selecting the title and description
-    $("[data-toggle=\"popover\"]").popover();
+    $("[data-toggle='popover']").popover();
 
     // Prevent user from entering a non numeric value into phone and fax field
-    $("#phone").keypress(function(key) {
-        if(key.charCode < 48 || key.charCode > 57) {
+    $("#phone").keypress(function (key) {
+        if (key.charCode < 48 || key.charCode > 57) {
             key.preventDefault();
         }
     });
-    $("#fax").keypress(function(key) {
-        if(key.charCode < 48 || key.charCode > 57) {
+    $("#fax").keypress(function (key) {
+        if (key.charCode < 48 || key.charCode > 57) {
             key.preventDefault();
         }
     });
@@ -30,14 +30,14 @@ $(document).ready(function () {
     $("#zipcode").attr("data-parsley-length-message", "The Zipcode must be 5 digits.");
 
     // Loop through required fields and apply a data-parsley-required attribute to them
-    var requiredFields = ["phone","fax","address-line-1", "city", "zipcode"];
-    for (var i = 0 ; i < requiredFields.length ; i++){
-        $("#" + requiredFields[i]).attr("data-parsley-required","");
+    var requiredFields = ["phone", "fax", "address-line-1", "city", "zipcode"];
+    for (var i = 0; i < requiredFields.length; i++) {
+        $("#" + requiredFields[i]).attr("data-parsley-required", "");
     }
 
     // Specify length requirement of certain fields
-    $("#phone").attr("data-parsley-length","[14,14]");
-    $("#fax").attr("data-parsley-length","[14,14]");
+    $("#phone").attr("data-parsley-length", "[14,14]");
+    $("#fax").attr("data-parsley-length", "[14,14]");
     $("#zipcode").attr("data-parsley-length", "[5,5]");
 
     // Custom Validation Messages
@@ -52,29 +52,30 @@ $(document).ready(function () {
     $("#zipcode").attr("data-parsley-required-message", "");
 
     // Checks that at least one form of contact was filled out in addition to the rest of the form.
-    $("#request-form").parsley().subscribe("parsley:form:validate", function () {
+
+    $("#request-form").parsley().on("form:validate", function () {
         // Re-apply validators to fields in the event that they were removed from previous validation requests.
-        for (var i = 0 ; i < requiredFields.length ; i++){
-           $("#" + requiredFields[i]).attr("data-parsley-required","");
+        for (i = 0; i < requiredFields.length; i++) {
+            $("#" + requiredFields[i]).attr("data-parsley-required", "");
         }
         // If address is filled out then make sure the city, state, and zipcode are filled.
-        if ($("#address-line-1").parsley().isValid()){
-                $("#city").attr("data-parsley-required", "");
-                $("#state").attr("data-parsley-required", "");
-                $("#zipcode").attr("data-parsley-required", "");
-            }
+        if ($("#address-line-1").parsley().isValid()) {
+            $("#city").attr("data-parsley-required", "");
+            $("#state").attr("data-parsley-required", "");
+            $("#zipcode").attr("data-parsley-required", "");
+        }
         // Checks that at least one of the contact information fields is filled in addition to the rest of the form
         if ($("#phone").parsley().isValid() ||
             $("#fax").parsley().isValid() ||
             ($("#address-line-1").parsley().isValid() && $("#state").parsley().isValid() && $("#zipcode").parsley().isValid() && $("#city").parsley().isValid())
         ) {
-                // If at least one of the fields are validated then remove required from the rest of the contact fields that aren"t being filled out
-                $("#city").removeAttr("data-parsley-required");
-                $("#state").removeAttr("data-parsley-required");
-                $("#zipcode").removeAttr("data-parsley-required");
-                $("#phone").removeAttr("data-parsley-required");
-                $("#fax").removeAttr("data-parsley-required");
-                $("#address-line-1").removeAttr("data-parsley-required");
+            // If at least one of the fields are validated then remove required from the rest of the contact fields that aren"t being filled out
+            $("#city").removeAttr("data-parsley-required");
+            $("#state").removeAttr("data-parsley-required");
+            $("#zipcode").removeAttr("data-parsley-required");
+            $("#phone").removeAttr("data-parsley-required");
+            $("#fax").removeAttr("data-parsley-required");
+            $("#address-line-1").removeAttr("data-parsley-required");
         }
         else {
             // If none of the fields are valid then produce an error message and apply required fields.

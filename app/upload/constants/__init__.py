@@ -21,8 +21,8 @@ ALLOWED_MIMETYPES = [
     'audio/mpeg',
     'video/mp4',
     'video/avi',
-    'application/vnd.oasis.opendocument.formula',
-    'application/vnd.oasis.opendocument.graphics',
+    'application/vnd.oasis.opendocument.formula',  # this should allow .odf but doesn't
+    'application/vnd.oasis.opendocument.graphics',  # this should allow .odg but doesn't
     'application/vnd.oasis.opendocument.presentation',
     'application/vnd.oasis.opendocument.spreadsheet',
     'application/vnd.oasis.opendocument.text',
@@ -41,5 +41,10 @@ ALLOWED_MIMETYPES = [
     'video/x-ms-wma',
     'video/x-ms-wmv',
     'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'image/bmp',  # .bmp
+    'image/x-windows-bmp',  # .bmp alternative
+    'application/vnd.openxmlformats-officedocument.presentationml.slideshow',  # .ppsx
+    'audio/wav',  # .wav alternative
+    'audio/x-ms-wma'  # .wma
 ]

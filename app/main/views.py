@@ -4,8 +4,6 @@
    :synopsis: Handles all core URL endpoints for the timeclock application
 """
 
-from datetime import datetime
-from flask import current_app
 from flask import (
     render_template,
     flash,
@@ -13,13 +11,11 @@ from flask import (
     make_response,
     url_for,
     redirect,
-    session
 )
 from app.lib.email_utils import send_email
 from flask_wtf import Form
 from wtforms import SubmitField, StringField
 
-from app.models import Users
 from . import main
 
 

@@ -3,7 +3,7 @@
  */
 $(document).ready(function () {
 
-    $("[data-toggle=\"popover\"]").popover();
+    $('[data-toggle="popover"]').popover();
 
     // Prevent user from entering a non numeric value into phone and fax field
     $("#phone").keypress(function(key) {
@@ -13,8 +13,8 @@ $(document).ready(function () {
             }
         }
     });
-    $("#fax").keypress(function(key) {
-        if (key.charCode !== 0){
+    $('#fax').keypress(function(key) {
+        if (key.charCode != 0){
             if (key.charCode < 48 || key.charCode > 57) {
                 key.preventDefault();
             }
@@ -22,23 +22,23 @@ $(document).ready(function () {
     });
 
     // javascript to add tooltip popovers when selecting the title and description
-    $("#request-title").attr({
-            "data-placement": "top",
-            "data-trigger": "hover focus",
-            "data-toggle": "popover",
-            "data-content": "Public Advocate Emails from 2015",
+    $('#request-title').attr({
+            'data-placement': "top",
+            'data-trigger': "hover focus",
+            'data-toggle': "popover",
+            'data-content': "Public Advocate Emails from 2015",
             title: "Example Title"
     });
-    $("#request-title").popover();
-    // $("#request-title").click(function(){
-    //     $("#request-title").popover("show");
+    $('#request-title').popover();
+    // $('#request-title').click(function(){
+    //     $('#request-title').popover('show');
     // });
 
-    $("#request-description").attr({
-            "data-placement": "top",
-            "data-trigger": "hover focus",
-            "data-toggle": "popover",
-            "data-content": "Topic: Public Advocate Emails from 2015. Emails that mention bike lanes or bicycle lanes from the Public Advocate's Office between July 27, 2015 and September 10, 2015.",
+    $('#request-description').attr({
+            'data-placement': "top",
+            'data-trigger': "hover focus",
+            'data-toggle': "popover",
+            'data-content': "Topic: Public Advocate Emails from 2015. Emails that mention bike lanes or bicycle lanes from the Public Advocate's Office between July 27, 2015 and September 10, 2015.",
             title: "Example Request"
     });
     $("#request-description").click(function(){
@@ -60,8 +60,7 @@ $(document).ready(function () {
     });
 
     // Loop through required fields and apply a data-parsley-required attribute to them
-
-    var requiredFields = ["request-title","request-description", "request-agency_ein", "first-name","last-name","email",
+    var requiredFields = ["request-title","request-description", "request-agency", "first-name","last-name","email",
         "phone","fax","address-line-1", "method-received","request-date", "city","zipcode"];
     for (var i = 0 ; i < requiredFields.length ; i++){
         $("#" + requiredFields[i]).attr("data-parsley-required","");
@@ -93,9 +92,9 @@ $(document).ready(function () {
     // Contact information validation
     $("#email").attr("data-parsley-type", "email");
     // Called when validation is used and checks that at least one form of contact was filled out
-    $("#request-form").parsley().subscribe("parsley:form:validate", function (formInstance) {
+    $("#request-form").parsley().on("form:validate", function (formInstance) {
         // Re-apply validators to fields in the event that they were removed from previous validation requests.
-        for (var i = 0 ; i < requiredFields.length ; i++){
+        for (i = 0 ; i < requiredFields.length ; i++){
            $("#" + requiredFields[i]).attr("data-parsley-required","");
         }
         // If address is filled out then make sure the city, state, and zipcode are filled.
@@ -108,9 +107,12 @@ $(document).ready(function () {
         if ($("#email").parsley().isValid() ||
             $("#phone").parsley().isValid() ||
             $("#fax").parsley().isValid() ||
-            ($("#address-line-1").parsley().isValid() && $("#state").parsley().isValid() && $("#zipcode").parsley().isValid() && $("#city").parsley().isValid())
+            ($("#address-line-1").parsley().isValid() &&
+            $("#state").parsley().isValid() &&
+            $("#zipcode").parsley().isValid() &&
+            $("#city").parsley().isValid())
             &&
-            ($("#request-agency_ein").parsley().isValid() &&
+            ($("#request-agency").parsley().isValid() &&
             $("#request-title").parsley().isValid() &&
             $("#request-description").parsley().isValid() &&
             $("#first-name").parsley().isValid() &&
@@ -146,7 +148,17 @@ $(document).ready(function () {
 
     // Disable submit button on form submission
     $("#request-form").submit(function() {
-        $("#submit").prop("disabled", true);  // TODO: display a spinner
+        $("#submit").hide();
+        $("#processing-submission").show();
+    });
+
+    // Character count for creating a new request
+    $("#request-title").keyup(function () {
+        characterCounter("#title-character-count", 90, $(this).val().length);
+    });
+
+    $("#request-description").keyup(function () {
+        characterCounter("#description-character-count", 5000, $(this).val().length);
     });
 
 });

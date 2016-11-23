@@ -3,7 +3,7 @@
  */
 $(document).ready(function () {
 
-    $("[data-toggle=\"popover\"]").popover();
+    $("[data-toggle='popover']").popover();
 
     // javascript to add tooltip popovers when selecting the title and description
     $("#request-title").attr({
@@ -36,14 +36,14 @@ $(document).ready(function () {
     // Apply parsley validation styles to the input forms for a new request.
     $("#request-title").attr("data-parsley-required", "");
     $("#request-title").attr("data-parsley-maxlength", 90);
-    $("#request-agency_ein").attr("data-parsley-required", "");
+    $("#request-agency").attr("data-parsley-required", "");
     $("#request-description").attr("data-parsley-required", "");
     $("#request-description").attr("data-parsley-maxlength", 5000);
 
     // Limit the size of the file upload to 20 Mb. Second parameter is number of Mb"s.
     $("#request-file").attr("data-parsley-max-file-size","20");
 
-    $("#request-form").parsley().subscribe("parsley:form:validate", function () {
+    $("#request-form").parsley().on("form:validate", function () {
         // Do stuff when parsley validates
         // TODO: this or combine (see the other new-request-* js files)
     });
@@ -59,7 +59,8 @@ $(document).ready(function () {
 
     // Disable submit button on form submission
     $("#request-form").submit(function() {
-        $("#submit").prop("disabled", true);  // TODO: display a spinner
+        $("#submit").hide();
+        $("#processing-submission").show();
     });
 
     // Character count for creating a new request

@@ -7,7 +7,7 @@ function bindFileUpload(target,
                         downloadTemplateId,
                         nextButton) {
     /*
-    Binds jquery file upload to the element identified by 'target'
+    Binds jquery file upload to the element identified by "target"
 
     @param {string} target - jquery selector string (ex. "#fileupload")
     @param {string} requestId - FOIL request id
@@ -60,7 +60,7 @@ function bindFileUpload(target,
                 4000);  // McAfee Scanner minimum 3+ second startup
         }
         else {
-            // Re-enable 'next' button
+            // Re-enable "next" button
             if (forUpdate) {
                 $(nextButton).attr("enabled", true);
             }
@@ -102,7 +102,7 @@ function bindFileUpload(target,
         $(".fileupload-loading").hide();
         $(".fileupload-process").hide();
     }).bind("fileuploadstarted", function (e, data) {
-        // Disable 'next' button
+        // Disable "next" button
         if (forUpdate) {
             $(nextButton).attr("disabled", true);
         }
@@ -111,9 +111,9 @@ function bindFileUpload(target,
 
 function encodeName(name) {
     /*
-    Returns an encoded (base64 without padding) version of 'name' intended
+    Returns an encoded (base64 without padding) version of "name" intended
     for use as/in an html id attribute or for use in a url.
-    Padding is removed because '=' is an invalid character for an html id
+    Padding is removed because "=" is an invalid character for an html id
     and it is reserved character for urls.
      */
     return window.btoa(name).replace(/=/g, "");
@@ -156,7 +156,7 @@ function pollUploadStatus(uploadFilename, htmlId, requestId, forUpdate, nextButt
                 tr.find(".processing-upload").remove();
                 setRemoveBtn(requestId, tr.find(".remove-post-fileupload"), true, forUpdate);
                 if (forUpdate) {
-                    // Enable 'next' button
+                    // Enable "next" button
                     $(nextButton).attr("disabled", false);
                 }
             }
@@ -172,11 +172,11 @@ function deleteUpload(requestId,
     Send a DELETE request to the upload endpoint.
      */
     var data = {};
-    if (updatedOnly) {
-        data = {updated_only: true};
+    if (updated_only) {
+        data = {updated_only: true}
     }
-    else if (quarantinedOnly) {
-        data = {quarantined_only: true};
+    else if (quarantined_only) {
+        data = {quarantined_only: true}
     }
 
     $.ajax({
