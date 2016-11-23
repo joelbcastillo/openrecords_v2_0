@@ -79,7 +79,7 @@ function loadMoreResponses() {
         error: function (error) {
             console.log(error);
         }
-    })
+    });
 }
 
 var navButtons = $("#responses-nav-buttons");
@@ -566,7 +566,7 @@ function setEditResponseWorkflow(responseId, responseType) {
 
             // Set character counter for link url
             first.find(".url").keyup(function () {
-                characterCounter(first.find(".link-url-character-count"), 254, $(this).val().length)
+                characterCounter(first.find(".link-url-character-count"), 254, $(this).val().length);
             });
 
             break;
