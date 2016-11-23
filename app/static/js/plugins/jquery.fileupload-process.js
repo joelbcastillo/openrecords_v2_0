@@ -17,8 +17,8 @@
     if (typeof define === 'function' && define.amd) {
         // Register as an anonymous AMD module:
         define([
-            'jquery',
-            './jquery.fileupload'
+            "jquery",
+            "./jquery.fileupload"
         ], factory);
     } else {
         // Browser globals:
@@ -33,7 +33,7 @@
 
     // The File Upload Processing plugin extends the fileupload widget
     // with file processing functionality:
-    $.widget('blueimp.fileupload', $.blueimp.fileupload, {
+    $.widget("blueimp.fileupload", $.blueimp.fileupload, {
 
         options: {
             // The list of processing actions:
@@ -89,7 +89,7 @@
                     that._trigger('processalways', null, data);
                 })
                 .fail(function () {
-                    that._trigger('processfail', null, data);
+                    that._trigger("processfail", null, data);
                     that._trigger('processalways', null, data);
                 });
             return chain;
@@ -135,7 +135,7 @@
             if (options.processQueue && options.processQueue.length) {
                 this._transformProcessQueue(options);
                 if (this._processing === 0) {
-                    this._trigger('processstart');
+                    this._trigger("processstart");
                 }
                 $.each(data.files, function (index) {
                     var opts = index ? $.extend({}, options) : options,
@@ -152,7 +152,7 @@
                         .always(function () {
                             that._processing -= 1;
                             if (that._processing === 0) {
-                                that._trigger('processstop');
+                                that._trigger("processstop");
                             }
                         });
                 });

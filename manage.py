@@ -34,6 +34,7 @@ class Celery(Command):
         subprocess.call(['celery', 'worker', '-A', 'celery_worker.celery', '--loglevel=info'])
 
 
+@classmethod
 def make_shell_context():
     return dict(
         app=app,

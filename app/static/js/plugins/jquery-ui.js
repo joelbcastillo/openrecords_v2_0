@@ -59,8 +59,8 @@ $.cleanData = ( function( orig ) {
 	};
 } )( $.cleanData );
 
-$.widget = function( name, base, prototype ) {
-	var existingConstructor, constructor, basePrototype;
+$.widget = function( name, Base, prototype ) {
+	var existingConstructor, constructor, BasePrototype;
 
 	// ProxiedPrototype allows the provided prototype to remain unmodified
 	// so that it can be used as a mixin for multiple widgets (#8876)
@@ -71,8 +71,8 @@ $.widget = function( name, base, prototype ) {
 	var fullName = namespace + "-" + name;
 
 	if ( !prototype ) {
-		prototype = base;
-		base = $.Widget;
+		prototype = Base;
+		Base = $.Widget;
 	}
 
 	if ( $.isArray( prototype ) ) {
@@ -113,12 +113,12 @@ $.widget = function( name, base, prototype ) {
 		_childConstructors: []
 	} );
 
-	basePrototype = new base();
+	BasePrototype = new Base();
 
 	// We need to make the options hash a property directly on the new instance
 	// otherwise we'll modify the options hash on the prototype that we're
 	// inheriting from
-	basePrototype.options = $.widget.extend( {}, basePrototype.options );
+	BasePrototype.options = $.widget.extend( {}, BasePrototype.options );
 	$.each( prototype, function( prop, value ) {
 		if ( !$.isFunction( value ) ) {
 			proxiedPrototype[ prop ] = value;
@@ -126,11 +126,11 @@ $.widget = function( name, base, prototype ) {
 		}
 		proxiedPrototype[ prop ] = ( function() {
 			function _super() {
-				return base.prototype[ prop ].apply( this, arguments );
+				return Base.prototype[ prop ].apply( this, arguments );
 			}
 
 			function _superApply( args ) {
-				return base.prototype[ prop ].apply( this, args );
+				return Base.prototype[ prop ].apply( this, args );
 			}
 
 			return function() {
@@ -150,12 +150,12 @@ $.widget = function( name, base, prototype ) {
 			};
 		} )();
 	} );
-	constructor.prototype = $.widget.extend( basePrototype, {
+	constructor.prototype = $.widget.extend( BasePrototype, {
 
 		// TODO: remove support for widgetEventPrefix
 		// always use the name + a colon as the prefix, e.g., draggable:start
-		// don't prefix for widgets that aren't DOM-based
-		widgetEventPrefix: existingConstructor ? ( basePrototype.widgetEventPrefix || name ) : name
+		// don't prefix for widgets that aren't DOM-Based
+		widgetEventPrefix: existingConstructor ? ( BasePrototype.widgetEventPrefix || name ) : name
 	}, proxiedPrototype, {
 		constructor: constructor,
 		namespace: namespace,
@@ -172,7 +172,7 @@ $.widget = function( name, base, prototype ) {
 			var childPrototype = child.prototype;
 
 			// Redefine the child widget using the same prototype that was
-			// originally used, but inherit from the new version of the base
+			// originally used, but inherit from the new version of the Base
 			$.widget( childPrototype.namespace + "." + childPrototype.widgetName, constructor,
 				child._proto );
 		} );
@@ -181,7 +181,7 @@ $.widget = function( name, base, prototype ) {
 		// so the old child constructors can be garbage collected
 		delete existingConstructor._childConstructors;
 	} else {
-		base._childConstructors.push( constructor );
+		Base._childConstructors.push( constructor );
 	}
 
 	$.widget.bridge( name, constructor );
@@ -878,7 +878,7 @@ $.fn.position = function( options ) {
 	// Make a copy, we don't want to modify arguments
 	options = $.extend( {}, options );
 
-	var atOffset, targetWidth, targetHeight, targetOffset, basePosition, dimensions,
+	var atOffset, targetWidth, targetHeight, targetOffset, BasePosition, dimensions,
 		target = $( options.of ),
 		within = $.position.getWithinInfo( options.within ),
 		scrollInfo = $.position.getScrollInfo( within ),
@@ -896,7 +896,7 @@ $.fn.position = function( options ) {
 	targetOffset = dimensions.offset;
 
 	// Clone to reuse original targetOffset later
-	basePosition = $.extend( {}, targetOffset );
+	BasePosition = $.extend( {}, targetOffset );
 
 	// Force my and at to have valid horizontal and vertical positions
 	// if a value is missing or invalid, it will be converted to center
@@ -936,20 +936,20 @@ $.fn.position = function( options ) {
 	}
 
 	if ( options.at[ 0 ] === "right" ) {
-		basePosition.left += targetWidth;
+		BasePosition.left += targetWidth;
 	} else if ( options.at[ 0 ] === "center" ) {
-		basePosition.left += targetWidth / 2;
+		BasePosition.left += targetWidth / 2;
 	}
 
 	if ( options.at[ 1 ] === "bottom" ) {
-		basePosition.top += targetHeight;
+		BasePosition.top += targetHeight;
 	} else if ( options.at[ 1 ] === "center" ) {
-		basePosition.top += targetHeight / 2;
+		BasePosition.top += targetHeight / 2;
 	}
 
 	atOffset = getOffsets( offsets.at, targetWidth, targetHeight );
-	basePosition.left += atOffset[ 0 ];
-	basePosition.top += atOffset[ 1 ];
+	BasePosition.left += atOffset[ 0 ];
+	BasePosition.top += atOffset[ 1 ];
 
 	return this.each( function() {
 		var collisionPosition, using,
@@ -962,7 +962,7 @@ $.fn.position = function( options ) {
 				scrollInfo.width,
 			collisionHeight = elemHeight + marginTop + parseCss( this, "marginBottom" ) +
 				scrollInfo.height,
-			position = $.extend( {}, basePosition ),
+			position = $.extend( {}, BasePosition ),
 			myOffset = getOffsets( offsets.my, elem.outerWidth(), elem.outerHeight() );
 
 		if ( options.my[ 0 ] === "right" ) {
@@ -1090,7 +1090,7 @@ $.ui.position = {
 			} else if ( overRight > 0 ) {
 				position.left -= overRight;
 
-			// Adjust based on position and margin
+			// Adjust Based on position and margin
 			} else {
 				position.left = max( position.left - collisionPosLeft, position.left );
 			}
@@ -1134,7 +1134,7 @@ $.ui.position = {
 			} else if ( overBottom > 0 ) {
 				position.top -= overBottom;
 
-			// Adjust based on position and margin
+			// Adjust Based on position and margin
 			} else {
 				position.top = max( position.top - collisionPosTop, position.top );
 			}
@@ -1597,7 +1597,7 @@ var labels = $.fn.labels = function() {
 	// as well as document fragments. control.labels does not work on document fragments
 	labels = this.eq( 0 ).parents( "label" );
 
-	// Look for the label based on the id
+	// Look for the label Based on the id
 	id = this.attr( "id" );
 	if ( id ) {
 
@@ -1608,7 +1608,7 @@ var labels = $.fn.labels = function() {
 		// Get a full set of top level ancestors
 		ancestors = ancestor.add( ancestor.length ? ancestor.siblings() : this.siblings() );
 
-		// Create a selector for the label based on the id
+		// Create a selector for the label Based on the id
 		selector = "label[for='" + $.ui.escapeSelector( id ) + "']";
 
 		labels = labels.add( ancestors.find( selector ).addBack( selector ) );
@@ -1735,7 +1735,7 @@ var ie = $.ui.ie = !!/msie [\w.]+/.exec( navigator.userAgent.toLowerCase() );
 
 //>>label: Mouse
 //>>group: Widgets
-//>>description: Abstracts mouse-based interactions to assist in creating certain widgets.
+//>>description: Abstracts mouse-Based interactions to assist in creating certain widgets.
 //>>docs: http://api.jqueryui.com/mouse/
 
 
@@ -2024,7 +2024,7 @@ var safeBlur = $.ui.safeBlur = function( element ) {
 //>>description: Enables dragging functionality for any element.
 //>>docs: http://api.jqueryui.com/draggable/
 //>>demos: http://jqueryui.com/draggable/
-//>>css.structure: ../../themes/base/draggable.css
+//>>css.structure: ../../themes/Base/draggable.css
 
 
 
@@ -2428,7 +2428,7 @@ $.widget( "ui.draggable", $.ui.mouse, {
 
 		// This is a special case where we need to modify a offset calculated on start, since the
 		// following happened:
-		// 1. The position of the helper is absolute, so it's position is calculated based on the
+		// 1. The position of the helper is absolute, so it's position is calculated Based on the
 		// next positioned parent
 		// 2. The actual offset parent is a child of the scroll parent, and the scroll parent isn't
 		// the document, which means that the scroll is included in the initial calculation of the
@@ -3620,7 +3620,7 @@ $.ui.ddmanager = {
 			$.ui.ddmanager.prepareOffsets( draggable, event );
 		}
 
-		// Run through all droppables and check their positions based on specific tolerance options
+		// Run through all droppables and check their positions Based on specific tolerance options
 		$.each( $.ui.ddmanager.droppables[ draggable.options.scope ] || [], function() {
 
 			if ( this.options.disabled || this.greedyChild || !this.visible ) {
@@ -3735,9 +3735,9 @@ var widgetsDroppable = $.ui.droppable;
 //>>description: Enables resize functionality for any element.
 //>>docs: http://api.jqueryui.com/resizable/
 //>>demos: http://jqueryui.com/resizable/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/resizable.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/resizable.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -4919,7 +4919,7 @@ var widgetsResizable = $.ui.resizable;
 //>>description: Allows groups of elements to be selected with the mouse.
 //>>docs: http://api.jqueryui.com/selectable/
 //>>demos: http://jqueryui.com/selectable/
-//>>css.structure: ../../themes/base/selectable.css
+//>>css.structure: ../../themes/Base/selectable.css
 
 
 
@@ -4947,7 +4947,7 @@ var widgetsSelectable = $.widget( "ui.selectable", $.ui.mouse, {
 
 		this.dragged = false;
 
-		// Cache selectee children based on filter
+		// Cache selectee children Based on filter
 		this.refresh = function() {
 			that.elementPos = $( that.element[ 0 ] ).offset();
 			that.selectees = $( that.options.filter, that.element[ 0 ] );
@@ -5214,7 +5214,7 @@ var widgetsSelectable = $.widget( "ui.selectable", $.ui.mouse, {
 //>>description: Enables items in a list to be sorted using the mouse.
 //>>docs: http://api.jqueryui.com/sortable/
 //>>demos: http://jqueryui.com/sortable/
-//>>css.structure: ../../themes/base/sortable.css
+//>>css.structure: ../../themes/Base/sortable.css
 
 
 
@@ -6312,7 +6312,7 @@ var widgetsSortable = $.widget( "ui.sortable", $.ui.mouse, {
 
 		// This is a special case where we need to modify a offset calculated on start, since the
 		// following happened:
-		// 1. The position of the helper is absolute, so it's position is calculated based on the
+		// 1. The position of the helper is absolute, so it's position is calculated Based on the
 		// next positioned parent
 		// 2. The actual offset parent is a child of the scroll parent, and the scroll parent isn't
 		// the document, which means that the scroll is included in the initial calculation of the
@@ -6752,9 +6752,9 @@ var widgetsSortable = $.widget( "ui.sortable", $.ui.mouse, {
 // jscs:enable maximumLineLength
 //>>docs: http://api.jqueryui.com/accordion/
 //>>demos: http://jqueryui.com/accordion/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/accordion.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/accordion.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -7347,9 +7347,9 @@ var widgetsAccordion = $.widget( "ui.accordion", {
 //>>description: Creates nestable menus.
 //>>docs: http://api.jqueryui.com/menu/
 //>>demos: http://jqueryui.com/menu/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/menu.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/menu.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -7908,7 +7908,7 @@ var widgetsMenu = $.widget( "ui.menu", {
 	},
 
 	nextPage: function( event ) {
-		var item, base, height;
+		var item, Base, height;
 
 		if ( !this.active ) {
 			this.next( event );
@@ -7918,11 +7918,11 @@ var widgetsMenu = $.widget( "ui.menu", {
 			return;
 		}
 		if ( this._hasScroll() ) {
-			base = this.active.offset().top;
+			Base = this.active.offset().top;
 			height = this.element.height();
 			this.active.nextAll( ".ui-menu-item" ).each( function() {
 				item = $( this );
-				return item.offset().top - base - height < 0;
+				return item.offset().top - Base - height < 0;
 			} );
 
 			this.focus( event, item );
@@ -7933,7 +7933,7 @@ var widgetsMenu = $.widget( "ui.menu", {
 	},
 
 	previousPage: function( event ) {
-		var item, base, height;
+		var item, Base, height;
 		if ( !this.active ) {
 			this.next( event );
 			return;
@@ -7942,11 +7942,11 @@ var widgetsMenu = $.widget( "ui.menu", {
 			return;
 		}
 		if ( this._hasScroll() ) {
-			base = this.active.offset().top;
+			Base = this.active.offset().top;
 			height = this.element.height();
 			this.active.prevAll( ".ui-menu-item" ).each( function() {
 				item = $( this );
-				return item.offset().top - base + height > 0;
+				return item.offset().top - Base + height > 0;
 			} );
 
 			this.focus( event, item );
@@ -8002,9 +8002,9 @@ var widgetsMenu = $.widget( "ui.menu", {
 //>>description: Lists suggested words as the user is typing.
 //>>docs: http://api.jqueryui.com/autocomplete/
 //>>demos: http://jqueryui.com/autocomplete/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/autocomplete.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/autocomplete.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -8211,7 +8211,7 @@ $.widget( "ui.autocomplete", {
 					// Right clicking a menu item or selecting text from the menu items will
 					// result in focus moving out of the input. However, we've already received
 					// and ignored the blur event because of the cancelBlur flag set above. So
-					// we restore focus to ensure that the menu closes properly based on the user's
+					// we restore focus to ensure that the menu closes properly Based on the user's
 					// next actions.
 					if ( this.element[ 0 ] !== $.ui.safeActiveElement( this.document[ 0 ] ) ) {
 						this.element.trigger( "focus" );
@@ -8666,9 +8666,9 @@ var widgetsAutocomplete = $.ui.autocomplete;
 //>>description: Visually groups form control widgets
 //>>docs: http://api.jqueryui.com/controlgroup/
 //>>demos: http://jqueryui.com/controlgroup/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/controlgroup.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/controlgroup.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 var controlgroupCornerRegex = /ui-corner-([a-z]){2,6}/g;
@@ -8951,10 +8951,10 @@ var widgetsControlgroup = $.widget( "ui.controlgroup", {
 //>>description: Enhances a form with multiple themeable checkboxes or radio buttons.
 //>>docs: http://api.jqueryui.com/checkboxradio/
 //>>demos: http://jqueryui.com/checkboxradio/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/button.css
-//>>css.structure: ../../themes/base/checkboxradio.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/button.css
+//>>css.structure: ../../themes/Base/checkboxradio.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -9221,9 +9221,9 @@ var widgetsCheckboxradio = $.ui.checkboxradio;
 //>>description: Enhances a form with themeable buttons.
 //>>docs: http://api.jqueryui.com/button/
 //>>demos: http://jqueryui.com/button/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/button.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/button.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -9244,7 +9244,7 @@ $.widget( "ui.button", {
 	_getCreateOptions: function() {
 		var disabled,
 
-			// This is to support cases like in jQuery Mobile where the base widget does have
+			// This is to support cases like in jQuery Mobile where the Base widget does have
 			// an implementation of _getCreateOptions
 			options = this._super() || {};
 
@@ -9589,9 +9589,9 @@ var widgetsButton = $.ui.button;
 //>>description: Displays a calendar from an input or inline for selecting dates.
 //>>docs: http://api.jqueryui.com/datepicker/
 //>>demos: http://jqueryui.com/datepicker/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/datepicker.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/datepicker.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -9791,7 +9791,7 @@ $.extend( Datepicker.prototype, {
 		}
 	},
 
-	/* Make attachments based on settings. */
+	/* Make attachments Based on settings. */
 	_attachments: function( input, inst ) {
 		var showOn, buttonText, buttonImage,
 			appendText = this._get( inst, "appendText" ),
@@ -10259,7 +10259,7 @@ $.extend( Datepicker.prototype, {
 		}
 	},
 
-	/* Filter entered characters - based on date format. */
+	/* Filter entered characters - Based on date format. */
 	_doKeyPress: function( event ) {
 		var chars, chr,
 			inst = $.datepicker._getInst( event.target );
@@ -10664,7 +10664,7 @@ $.extend( Datepicker.prototype, {
 		return [ ( day > 0 && day < 6 ), "" ];
 	},
 
-	/* Set as calculateWeek to determine the week of the year based on the ISO 8601 definition.
+	/* Set as calculateWeek to determine the week of the year Based on the ISO 8601 definition.
 	 * @param  date  Date - the date to get the week for
 	 * @return  number - the number of the week within the year that contains this date
 	 */
@@ -11693,9 +11693,9 @@ var widgetsDatepicker = $.datepicker;
 //>>description: Displays customizable dialog windows.
 //>>docs: http://api.jqueryui.com/dialog/
 //>>demos: http://jqueryui.com/dialog/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/dialog.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/dialog.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -12610,9 +12610,9 @@ var widgetsDialog = $.ui.dialog;
 // jscs:enable maximumLineLength
 //>>docs: http://api.jqueryui.com/progressbar/
 //>>demos: http://jqueryui.com/progressbar/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/progressbar.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/progressbar.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -12774,9 +12774,9 @@ var widgetsProgressbar = $.widget( "ui.progressbar", {
 // jscs:enable maximumLineLength
 //>>docs: http://api.jqueryui.com/selectmenu/
 //>>demos: http://jqueryui.com/selectmenu/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/selectmenu.css, ../../themes/base/button.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/selectmenu.css, ../../themes/Base/button.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -13438,9 +13438,9 @@ var widgetsSelectmenu = $.widget( "ui.selectmenu", [ $.ui.formResetMixin, {
 //>>description: Displays a flexible slider with ranges and accessibility via keyboard.
 //>>docs: http://api.jqueryui.com/slider/
 //>>demos: http://jqueryui.com/slider/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/slider.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/slider.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -14174,9 +14174,9 @@ var widgetsSlider = $.widget( "ui.slider", $.ui.mouse, {
 //>>description: Displays buttons to easily input numbers via the keyboard or mouse.
 //>>docs: http://api.jqueryui.com/spinner/
 //>>demos: http://jqueryui.com/spinner/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/spinner.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/spinner.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -14308,7 +14308,7 @@ $.widget( "ui.spinner", {
 			// interacting with the spinner, the focus should be on the input.
 			// If the input is focused then this.previous is properly set from
 			// when the input first received focus. If the input is not focused
-			// then we need to set this.previous based on the value before spinning.
+			// then we need to set this.previous Based on the value before spinning.
 			previous = this.element[ 0 ] === $.ui.safeActiveElement( this.document[ 0 ] ) ?
 				this.previous : this.element.val();
 			function checkFocus() {
@@ -14508,19 +14508,19 @@ $.widget( "ui.spinner", {
 	},
 
 	_adjustValue: function( value ) {
-		var base, aboveMin,
+		var Base, aboveMin,
 			options = this.options;
 
 		// Make sure we're at a valid step
-		// - find out where we are relative to the base (min or 0)
-		base = options.min !== null ? options.min : 0;
-		aboveMin = value - base;
+		// - find out where we are relative to the Base (min or 0)
+		Base = options.min !== null ? options.min : 0;
+		aboveMin = value - Base;
 
 		// - round to the nearest step
 		aboveMin = Math.round( aboveMin / options.step ) * options.step;
 
-		// - rounding is based on 0, so adjust back to our base
-		value = base + aboveMin;
+		// - rounding is Based on 0, so adjust back to our Base
+		value = Base + aboveMin;
 
 		// Fix precision from bad JS floating point math
 		value = parseFloat( value.toFixed( this._precision() ) );
@@ -14732,9 +14732,9 @@ var widgetsSpinner = $.ui.spinner;
 //>>description: Transforms a set of container elements into a tab structure.
 //>>docs: http://api.jqueryui.com/tabs/
 //>>demos: http://jqueryui.com/tabs/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/tabs.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/tabs.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -14915,7 +14915,7 @@ $.widget( "ui.tabs", {
 			return;
 		}
 
-		// Focus the appropriate tab, based on which key was pressed
+		// Focus the appropriate tab, Based on which key was pressed
 		event.preventDefault();
 		clearTimeout( this.activating );
 		selectedIndex = this._focusNextTab( selectedIndex, goingForward );
@@ -15638,9 +15638,9 @@ var widgetsTabs = $.ui.tabs;
 //>>description: Shows additional information for any element on hover or focus.
 //>>docs: http://api.jqueryui.com/tooltip/
 //>>demos: http://jqueryui.com/tooltip/
-//>>css.structure: ../../themes/base/core.css
-//>>css.structure: ../../themes/base/tooltip.css
-//>>css.theme: ../../themes/base/theme.css
+//>>css.structure: ../../themes/Base/core.css
+//>>css.structure: ../../themes/Base/tooltip.css
+//>>css.theme: ../../themes/Base/theme.css
 
 
 
@@ -16631,7 +16631,7 @@ spaces.hsla.to = function( rgba ) {
 	}
 
 	// Chroma (diff) == 0 means greyscale which, by definition, saturation = 0%
-	// otherwise, saturation is based on the ratio of chroma (diff) to lightness (add)
+	// otherwise, saturation is Based on the ratio of chroma (diff) to lightness (add)
 	if ( diff === 0 ) {
 		s = 0;
 	} else if ( l <= 0.5 ) {
@@ -16925,7 +16925,7 @@ $.effects.animateClass = function( value, duration, easing, callback ) {
 
 	return this.queue( function() {
 		var animated = $( this ),
-			baseClass = animated.attr( "class" ) || "",
+			BaseClass = animated.attr( "class" ) || "",
 			applyClassChange,
 			allAnimations = o.children ? animated.find( "*" ).addBack() : animated;
 
@@ -16956,7 +16956,7 @@ $.effects.animateClass = function( value, duration, easing, callback ) {
 		} );
 
 		// Apply original class
-		animated.attr( "class", baseClass );
+		animated.attr( "class", BaseClass );
 
 		// Map all animated objects again - this time collecting a promise
 		allAnimations = allAnimations.map( function() {
@@ -17264,7 +17264,7 @@ $.extend( $.effects, {
 		return mode;
 	},
 
-	// Translates a [top,left] array into a baseline value
+	// Translates a [top,left] array into a Baseline value
 	getBaseline: function( origin, original ) {
 		var y, x;
 
@@ -17327,7 +17327,7 @@ $.extend( $.effects, {
 			placeholder = $( "<" + element[ 0 ].nodeName + ">" ).insertAfter( element ).css( {
 
 				// Convert inline to inline block to account for inline elements
-				// that turn to inline block based on content (like img)
+				// that turn to inline block Based on content (like img)
 				display: /^(inline|ruby)/.test( element.css( "display" ) ) ?
 					"inline-block" :
 					"block",
@@ -17704,15 +17704,15 @@ $.fx.step.clip = function( fx ) {
 
 // Based on easing equations from Robert Penner (http://www.robertpenner.com/easing)
 
-var baseEasings = {};
+var BaseEasings = {};
 
 $.each( [ "Quad", "Cubic", "Quart", "Quint", "Expo" ], function( i, name ) {
-	baseEasings[ name ] = function( p ) {
+	BaseEasings[ name ] = function( p ) {
 		return Math.pow( p, i + 2 );
 	};
 } );
 
-$.extend( baseEasings, {
+$.extend( BaseEasings, {
 	Sine: function( p ) {
 		return 1 - Math.cos( p * Math.PI / 2 );
 	},
@@ -17735,7 +17735,7 @@ $.extend( baseEasings, {
 	}
 } );
 
-$.each( baseEasings, function( name, easeIn ) {
+$.each( BaseEasings, function( name, easeIn ) {
 	$.easing[ "easeIn" + name ] = easeIn;
 	$.easing[ "easeOut" + name ] = function( p ) {
 		return 1 - easeIn( 1 - p );
@@ -18076,7 +18076,7 @@ var effectsEffectExplode = $.effects.define( "explode", "hide", function( option
 					top: -i * height
 				} )
 
-				// Select the wrapper - make it overflow: hidden and absolute positioned based on
+				// Select the wrapper - make it overflow: hidden and absolute positioned Based on
 				// where the original was located +left and +top equal to the size of pieces
 				.parent()
 					.addClass( "ui-effects-explode" )
@@ -18278,7 +18278,7 @@ var effectsEffectHighlight = $.effects.define( "highlight", "show", function( op
 var effectsEffectSize = $.effects.define( "size", function( options, done ) {
 
 	// Create element
-	var baseline, factor, temp,
+	var Baseline, factor, temp,
 		element = $( this ),
 
 		// Copy for children
@@ -18343,13 +18343,13 @@ var effectsEffectSize = $.effects.define( "size", function( options, done ) {
 		}
 	}
 
-	// Adjust the position properties based on the provided origin points
+	// Adjust the position properties Based on the provided origin points
 	if ( origin ) {
-		baseline = $.effects.getBaseline( origin, original );
-		from.top = ( original.outerHeight - from.outerHeight ) * baseline.y + pos.top;
-		from.left = ( original.outerWidth - from.outerWidth ) * baseline.x + pos.left;
-		to.top = ( original.outerHeight - to.outerHeight ) * baseline.y + pos.top;
-		to.left = ( original.outerWidth - to.outerWidth ) * baseline.x + pos.left;
+		Baseline = $.effects.getBaseline( origin, original );
+		from.top = ( original.outerHeight - from.outerHeight ) * Baseline.y + pos.top;
+		from.left = ( original.outerWidth - from.outerWidth ) * Baseline.x + pos.left;
+		to.top = ( original.outerHeight - to.outerHeight ) * Baseline.y + pos.top;
+		to.left = ( original.outerWidth - to.outerWidth ) * Baseline.x + pos.left;
 	}
 	element.css( from );
 

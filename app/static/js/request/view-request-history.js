@@ -37,7 +37,7 @@ function previousHistory() {
         }
         document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
     }
-    if (requestHistoryIndex === requestHistory.length - requestHistoryIndexShift) {
+    if (requestHistoryIndex == requestHistory.length - requestHistoryIndexShift) {
         $(".load-more-history").show();
     } else {
         $(".load-more-history").hide();
@@ -54,7 +54,7 @@ function nextHistory() {
         }
         document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
     }
-    if (requestHistoryIndex === requestHistory.length - requestHistoryIndexShift) {
+    if (requestHistoryIndex == requestHistory.length - requestHistoryIndexShift) {
         $(".load-more-history").show();
     } else {
         $(".load-more-history").hide();
@@ -70,7 +70,7 @@ function loadMoreHistory() {
         data: {requestHistoryReloadIndex: requestHistoryReloadIndex},
         success: function (data) {
             requestHistory = data.requestHistory;
-            var requestHistoryHtml = "<table class=> <tbody>";
+            var requestHistoryHtml = "<table class='table'> <tbody>";
             for (var i = requestHistoryIndex; i < requestHistoryIndex + requestHistoryIndexShift; i++) {
                 requestHistoryHtml = requestHistoryHtml + "<tr> <td>" + requestHistory[i] + "</td> </tr>";
             }

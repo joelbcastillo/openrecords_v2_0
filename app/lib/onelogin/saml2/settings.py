@@ -324,6 +324,7 @@ class OneLogin_Saml2_Settings(object):
 
         return errors
 
+    @classmethod
     def check_idp_settings(self, settings):
         """
         Checks the IdP settings info.
@@ -365,7 +366,7 @@ class OneLogin_Saml2_Settings(object):
                     nameid_enc = bool(security.get('nameIdEncrypted'))
 
                     if (want_assert_sign or want_mes_signed) and \
-                            not(exists_x509 or exists_fingerprint):
+                            not (exists_x509 or exists_fingerprint):
                         errors.append('idp_cert_or_fingerprint_not_found_and_required')
                     if nameid_enc and not exists_x509:
                         errors.append('idp_cert_not_found_and_required')
@@ -420,12 +421,15 @@ class OneLogin_Saml2_Settings(object):
                                 errors.append('sp_attributeConsumingService_requestedAttributes_name_not_found')
                             if 'name' in req_attrib and not req_attrib['name'].strip():
                                 errors.append('sp_attributeConsumingService_requestedAttributes_name_invalid')
-                            if 'attributeValue' in req_attrib and type(req_attrib['attributeValue']) != list:
-                                errors.append('sp_attributeConsumingService_requestedAttributes_attributeValue_type_invalid')
-                            if 'isRequired' in req_attrib and type(req_attrib['isRequired']) != bool:
-                                errors.append('sp_attributeConsumingService_requestedAttributes_isRequired_type_invalid')
+                            if 'attributeValue' in req_attrib and isinstance(req_attrib['attributeValue']) != list:
+                                errors.append(
+                                    'sp_attributeConsumingService_requestedAttributes_attributeValue_type_invalid')
+                            if 'isRequired' in req_attrib and isinstance(req_attrib['isRequired']) != bool:
+                                errors.append(
+                                    'sp_attributeConsumingService_requestedAttributes_isRequired_type_invalid')
 
-                    if "serviceDescription" in attributeConsumingService and not isinstance(attributeConsumingService['serviceDescription'], basestring):
+                    if "serviceDescription" in attributeConsumingService and not isinstance(
+                            attributeConsumingService['serviceDescription'], basestring):
                         errors.append('sp_attributeConsumingService_serviceDescription_type_invalid')
 
                 slo_url = sp.get('singleLogoutService', {}).get('url')
@@ -434,7 +438,7 @@ class OneLogin_Saml2_Settings(object):
 
                 if 'signMetadata' in security and isinstance(security['signMetadata'], dict):
                     if 'keyFileName' not in security['signMetadata'] or \
-                            'certFileName' not in security['signMetadata']:
+                                    'certFileName' not in security['signMetadata']:
                         errors.append('sp_signMetadata_invalid')
 
                 authn_sign = bool(security.get('authnRequestsSigned'))
@@ -445,7 +449,7 @@ class OneLogin_Saml2_Settings(object):
 
                 if not self.check_sp_certs():
                     if authn_sign or logout_req_sign or logout_res_sign or \
-                       want_assert_enc or want_nameid_enc:
+                            want_assert_enc or want_nameid_enc:
                         errors.append('sp_cert_not_found_and_required')
 
             if 'contactPerson' in settings:
@@ -467,7 +471,7 @@ class OneLogin_Saml2_Settings(object):
                 for org in settings['organization']:
                     organization = settings['organization'][org]
                     if ('name' not in organization or len(organization['name']) == 0) or \
-                        ('displayname' not in organization or len(organization['displayname']) == 0) or \
+                            ('displayname' not in organization or len(organization['displayname']) == 0) or \
                             ('url' not in organization or len(organization['url']) == 0):
                         errors.append('organization_not_enought_data')
                         break
@@ -605,7 +609,7 @@ class OneLogin_Saml2_Settings(object):
             else:
                 # Use a custom key to sign the metadata:
                 if ('keyFileName' not in self.__security['signMetadata'] or
-                        'certFileName' not in self.__security['signMetadata']):
+                            'certFileName' not in self.__security['signMetadata']):
                     raise OneLogin_Saml2_Error(
                         'Invalid Setting: signMetadata value of the sp is not valid',
                         OneLogin_Saml2_Error.SETTINGS_INVALID_SYNTAX

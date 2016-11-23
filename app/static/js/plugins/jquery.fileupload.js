@@ -17,8 +17,8 @@
     if (typeof define === 'function' && define.amd) {
         // Register as an anonymous AMD module:
         define([
-            'jquery',
-            'jquery-ui/widget'
+            "jquery",
+            "jquery-ui/widget"
         ], factory);
     } else if (typeof exports === 'object') {
         // Node/CommonJS:
@@ -31,19 +31,19 @@
         factory(window.jQuery);
     }
 }(function ($) {
-    'use strict';
+    "use strict";
 
     // Detect file input support, based on
     // http://viljamis.com/blog/2012/file-upload-support-on-mobile/
     $.support.fileInput = !(new RegExp(
         // Handle devices which give false positives for the feature detection:
-        '(Android (1\\.[0156]|2\\.[01]))' +
-            '|(Windows Phone (OS 7|8\\.0))|(XBLWP)|(ZuneWP)|(WPDesktop)' +
-            '|(w(eb)?OSBrowser)|(webOS)' +
-            '|(Kindle/(1\\.0|2\\.[05]|3\\.0))'
+        "(Android (1\\.[0156]|2\\.[01]))" +
+            "|(Windows Phone (OS 7|8\\.0))|(XBLWP)|(ZuneWP)|(WPDesktop)" +
+            "|(w(eb)?OSBrowser)|(webOS)" +
+            "|(Kindle/(1\\.0|2\\.[05]|3\\.0))"
     ).test(window.navigator.userAgent) ||
         // Feature detection for all other devices:
-        $('<input type="file">').prop('disabled'));
+        $("<input type='file'>").prop("disabled"));
 
     // The FileReader API is not actually used, but works as feature detection,
     // as some Safari versions (5?) support XHR file uploads via the FormData API,
@@ -63,14 +63,14 @@
         return function (e) {
             e.dataTransfer = e.originalEvent && e.originalEvent.dataTransfer;
             var dataTransfer = e.dataTransfer;
-            if (dataTransfer && $.inArray('Files', dataTransfer.types) !== -1 &&
+            if (dataTransfer && $.inArray("Files", dataTransfer.types) !== -1 &&
                     this._trigger(
                         type,
                         $.Event(type, {delegatedEvent: e})
                     ) !== false) {
                 e.preventDefault();
                 if (isDragOver) {
-                    dataTransfer.dropEffect = 'copy';
+                    dataTransfer.dropEffect = "copy";
                 }
             }
         };
@@ -284,11 +284,11 @@
         // A list of options that require reinitializing event listeners and/or
         // special initialization code:
         _specialOptions: [
-            'fileInput',
-            'dropZone',
-            'pasteZone',
-            'multipart',
-            'forceIframeTransport'
+            "fileInput",
+            "dropZone",
+            "pasteZone",
+            "multipart",
+            "forceIframeTransport"
         ],
 
         _blobSlice: $.support.blobSlice && function () {
