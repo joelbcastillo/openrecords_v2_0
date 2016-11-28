@@ -43,7 +43,30 @@ $(document).ready(function () {
     // Limit the size of the file upload to 20 Mb. Second parameter is number of Mb"s.
     $("#request-file").attr("data-parsley-max-file-size","20");
 
-    $("#request-form").parsley().subscribe("parsley:form:validate", function () {
+    // Set name of the file to the text of filename div if file exists
+    $("#request-file").change(function () {
+        var file = this.files[0];
+        var isChrome = window.chrome;
+
+        if(file) {
+            $("#filename").text((this.files[0].name));
+        }
+        // Cancel is clicked on upload window
+        else {
+            // If browser is chrome, reset filename text
+            if(isChrome) {
+                $("#filename").text("");
+            }
+        }
+    });
+
+    // Clear the file from input and the name from filename div
+    $("#clear-file").click(function () {
+        $("#request-file").val("");
+        $("#filename").text("");
+    });
+
+    $('#request-form').parsley().on('form:validate', function () {
         // Do stuff when parsley validates
         // TODO: this or combine (see the other new-request-* js files)
     });

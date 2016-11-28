@@ -10,6 +10,7 @@ import re
 import json
 from datetime import datetime
 from abc import ABCMeta, abstractmethod
+import urllib.parse
 from urllib.parse import urljoin
 
 import magic
@@ -30,6 +31,7 @@ from app.constants import (
     response_privacy,
     request_status,
     determination_type,
+    user_type_auth,
     UPDATED_FILE_DIRNAME,
     DELETED_FILE_DIRNAME,
 )
@@ -37,7 +39,7 @@ from app.constants.request_date import RELEASE_PUBLIC_DAYS
 from app.constants.response_privacy import PRIVATE, RELEASE_AND_PUBLIC
 from app.lib.date_utils import generate_new_due_date
 from app.lib.db_utils import create_object, update_object
-from app.lib.email_utils import send_email, get_agencies_emails
+from app.lib.email_utils import send_email, get_agency_emails
 from app.lib.file_utils import get_mime_type
 from app.lib.utils import (
     get_file_hash,
@@ -51,8 +53,10 @@ from app.models import (
     Instructions,
     Requests,
     Responses,
+    Reasons,
     Determinations,
-    Emails
+    Emails,
+    ResponseTokens
 )
 
 
@@ -86,7 +90,10 @@ def add_file(request_id, filename, title, privacy):
         hash_,
     )
     create_object(response)
+
     _create_response_event(response, event_type.FILE_ADDED)
+
+    return response
 
 
 def add_note(request_id, note_content, email_content, privacy):
@@ -116,7 +123,7 @@ def add_acknowledgment(request_id, info, days, date, email_content):
     :param info: additional information pertaining to the acknowledgment
     :param days: days until request completion
     :param date: date of request completion
-    :param email_content: email body associated with this action
+    :param email_content: email body associated with the acknowledgment
 
     """
     if not Requests.query.filter_by(id=request_id).one().was_acknowledged:
@@ -140,8 +147,33 @@ def add_acknowledgment(request_id, info, days, date, email_content):
         _send_response_email(request_id, privacy, email_content)
 
 
-def add_denial(request_id, reason, email_content):
-    pass
+def add_denial(request_id, reason_ids, email_content):
+    """
+    Create and store a denial-determination response for
+    the specified request and update the request accordingly.
+
+    :param request_id: FOIL request ID
+    :param reason: reason for denial
+    :param email_content: email body associated with the denial
+
+    """
+    if Requests.query.filter_by(id=request_id).one().status != request_status.CLOSED:
+        update_object(
+            {'status': request_status.CLOSED},
+            Requests,
+            request_id
+        )
+        privacy = RELEASE_AND_PUBLIC
+        response = Determinations(
+            request_id,
+            privacy,
+            determination_type.DENIAL,
+            ",".join(Reasons.query.filter_by(id=reason_id).one().content
+                     for reason_id in reason_ids)
+        )
+        create_object(response)
+        _create_response_event(response, event_type.REQ_CLOSED)  # FIXME: REQ_DENIED?
+        _send_response_email(request_id, privacy, email_content)
 
 
 def add_extension(request_id, length, reason, custom_due_date, email_content):
@@ -307,35 +339,6 @@ def process_upload_data(form):
     return files
 
 
-def process_privacy_options(files):
-    """
-    Create a dictionary, files_privacy_options, containing lists of 'release' and 'private', with values of filenames.
-    Two empty lists: private_files and release_files are first created. Iterate through files dictionary to determine
-    the privacy options of file(s) and append to appropriate list. Create files_privacy_option dictionary with keys:
-    release, which holds release_files, and private, which holds private_files.
-
-    :param files: list of filenames
-
-    :return: Dictionary with 'release' and 'private' lists.
-    """
-    private_files = []
-    release_files = []
-    for filename in files:
-        if files[filename]['privacy'] == 'private':
-            private_files.append(filename)
-        else:
-            release_files.append(filename)
-
-    files_privacy_options = dict()
-
-    if release_files:
-        files_privacy_options['release'] = release_files
-
-    if private_files:
-        files_privacy_options['private'] = private_files
-    return files_privacy_options
-
-
 def process_email_template_request(request_id, data):
     """
     Process the email template for responses. Determine the type of response from passed in data and follows
@@ -355,7 +358,8 @@ def process_email_template_request(request_id, data):
     if rtype in determination_type.ALL:
         handler_for_type = {
             determination_type.EXTENSION: _extension_email_handler,
-            determination_type.ACKNOWLEDGMENT: _acknowledgment_email_handler
+            determination_type.ACKNOWLEDGMENT: _acknowledgment_email_handler,
+            determination_type.DENIAL: _denial_email_handler,
         }
     else:
         handler_for_type = {
@@ -369,6 +373,17 @@ def process_email_template_request(request_id, data):
 
 
 def _acknowledgment_email_handler(request_id, data, page, agency_name, email_template):
+    """
+    Process email template for an acknowledgement.
+
+    :param request_id: FOIL request ID
+    :param data: data from frontend AJAX call
+    :param page: string url link of the request
+    :param agency_name: string name of the agency of the request
+    :param email_template: raw HTML email template of a response
+
+    :return: the HTML of the rendered template of an acknowledgement
+    """
     acknowledgment = data.get('acknowledgment')
 
     if acknowledgment is not None:
@@ -394,6 +409,17 @@ def _acknowledgment_email_handler(request_id, data, page, agency_name, email_tem
                                                 date=date,
                                                 info=info,
                                                 page=page)}), 200
+
+
+def _denial_email_handler(request_id, data, page, agency_name, email_template):
+    return jsonify({"template": render_template(
+        email_template,
+        request_id=request_id,
+        agency_name=agency_name,
+        reasons=[Reasons.query.filter_by(id=reason_id).one().content
+                 for reason_id in data.getlist('reason_ids[]')],
+        page=page
+    )}), 200
 
 
 def _extension_email_handler(request_id, data, page, agency_name, email_template):
@@ -465,9 +491,11 @@ def _file_email_handler(request_id, data, page, agency_name, email_template):
         files = []
         default_content = True
         content = None
+        if eval_request_bool(data['is_private']):
+            email_template = 'email_templates/email_private_file_upload.html'
     # iterate through files dictionary to create and append links of files with privacy option of not private
     for file_ in files:
-        if file_['privacy'] != PRIVATE:
+        if file_['privacy'] != PRIVATE or eval_request_bool(data['is_private']):
             filename = file_['filename']
             files_links[filename] = "http://127.0.0.1:5000/request/view/{}".format(filename)
     return jsonify({"template": render_template(email_template,
@@ -716,49 +744,84 @@ def get_email_key(response_id, requester=False):
     return '_'.join((str(response_id), 'requester' if requester else 'agency'))
 
 
-def send_file_email(request_id, privacy, filenames, email_content, **kwargs):
+def get_file_links(response, agency_file_links, requester_file_links):
     """
-    Function that sends email detailing a file response has been uploaded to a request.
-    If the file privacy is private, only agency_ein users are emailed.
-    If the file privacy is release, the requester is emailed and the agency_ein users are bcced.
-    Send email notification detailing a file response has been uploaded to the request.
+    Create file links for a file response based on privacy.
+    Add file link item to agency_file_links dictionary and to requester_file_links dictionary if file response is not
+    private.
+
+    :param response: response object
+    :param agency_file_links: dictionary of agency file links containing nested dictionaries of private and release
+                              with both containing key, value of filename and file link
+    :param requester_file_links: dictionary of file links to the requester with key, value of filename and file link
+
+    :return: agency_file_links dictionary and requester_file_links (if file is not private) dictionary with
+             added file link item
+    """
+    resp = Responses.query.filter_by(id=response.id).one()
+    path = '/response/' + str(response.id)
+
+    agency_link = urljoin(flask_request.url_root, path)
+    if resp.privacy != PRIVATE:
+        if resp.request.requester.is_anonymous_requester:
+            resptoken = ResponseTokens(response.id)
+            create_object(resptoken)
+            params = urllib.parse.urlencode({'token': resptoken.token})
+            requester_url = urljoin(flask_request.url_root, path)
+            requester_link = requester_url + "?%s" % params
+        else:
+            requester_link = urljoin(flask_request.url_root, path)
+        requester_file_links[resp.name] = requester_link
+        agency_file_links['release'][resp.name] = agency_link
+    else:
+        agency_file_links['private'][resp.name] = agency_link
+    return agency_file_links, requester_file_links
+
+
+def send_file_email(request_id, agency_file_links, requester_file_links, email_content):
+    """
+    Send email with file links detailing a file response has been added to the request.
+    Requester receives email only if requester_file_links dictionary has key and value.
+    Agency users always receive email.
 
     :param request_id: FOIL request ID
-    :param privacy: privacy option of the uploaded file
-    :param filenames: list of secured filenames
-    :param email_content: string of HTML email content that can be used as a message template
+    :param agency_file_links: dictionary of agency file links containing nested dictionaries of private and release
+                              with both containing key, value of filename and file link
+    :param requester_file_links: dictionary of file links to the requester with key, value of filename and file link
+    :param email_content: string body of email from tinymce textarea
 
+    :return:
     """
-    # TODO: make subject constants
+    page = urljoin(flask_request.host_url, url_for('request.view', request_id=request_id))
+    is_anon = None
+    if Requests.query.filter_by(id=request_id).one().requester.is_anonymous_requester:
+        is_anon = True
     subject = 'Response Added'
-    bcc = get_agencies_emails(request_id)
-    # create a dictionary of filenames to be passed through jinja to email template
-    file_to_link = {}
-    for filename in filenames:
-        file_to_link[filename] = "http://127.0.0.1:5000/request/view/{}".format(filename)
+    bcc = get_agency_emails(request_id)
     agency_name = Requests.query.filter_by(id=request_id).first().agency.name
-    if privacy == 'release':
-        # Query for the requester's email information
-        requester_email = Requests.query.filter_by(id=request_id).one().requester.email
-        # Send email with files to requester and bcc agency_ein users as privacy option is release
+    requester_email = Requests.query.filter_by(id=request_id).one().requester.email
+    if requester_file_links:
+        email_content_requester = render_template('email_templates/email_response_file.html',
+                                                  request_id=request_id,
+                                                  email_file_content=email_content,
+                                                  agency_name=agency_name,
+                                                  requester_file_links=requester_file_links,
+                                                  is_anon=is_anon)
         safely_send_and_add_email(request_id,
-                                  email_content,
+                                  email_content_requester,
                                   subject,
-                                  to=[requester_email],
-                                  bcc=bcc,
-                                  agency_name=agency_name,
-                                  files_links=file_to_link)
-
-    if privacy == 'private':
-        # Send email with files to agency_ein users only as privacy option is private
-        email_content = render_template(kwargs['email_template'],
-                                        request_id=request_id,
-                                        agency_name=agency_name,
-                                        files_links=file_to_link)
-        safely_send_and_add_email(request_id,
-                                  email_content,
-                                  subject,
-                                  bcc=bcc)
+                                  to=[requester_email])
+        email_content = None
+    email_content_agency = render_template('email_templates/email_private_file_upload.html',
+                                           request_id=request_id,
+                                           email_file_content=email_content,
+                                           agency_name=agency_name,
+                                           agency_file_links=agency_file_links,
+                                           page=page)
+    safely_send_and_add_email(request_id,
+                              email_content_agency,
+                              subject,
+                              bcc=bcc)
 
 
 def _send_edit_response_email(request_id, email_content_agency, email_content_requester=None):
@@ -777,7 +840,7 @@ def _send_edit_response_email(request_id, email_content_agency, email_content_re
     :return:
     """
     subject = 'Response Edited'
-    bcc = get_agencies_emails(request_id)
+    bcc = get_agency_emails(request_id)
     requester_email = Requests.query.filter_by(id=request_id).one().requester.email
     safely_send_and_add_email(request_id, email_content_agency, subject, bcc=bcc)
     if email_content_requester is not None:
@@ -801,7 +864,7 @@ def _send_response_email(request_id, privacy, email_content):
 
     """
     subject = 'Response Added'
-    bcc = get_agencies_emails(request_id)
+    bcc = get_agency_emails(request_id)
     requester_email = Requests.query.filter_by(id=request_id).one().requester.email
     # Send email with link to requester and bcc agency_ein users as privacy option is release
     kwargs = {
@@ -829,7 +892,7 @@ def _send_delete_response_email(request_id, response):
             response=response,
             response_type=response_type),
         'Response Deleted',
-        to=get_agencies_emails(request_id))
+        to=get_agency_emails(request_id))
 
 
 def safely_send_and_add_email(request_id,

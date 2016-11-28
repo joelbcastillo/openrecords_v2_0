@@ -7,10 +7,11 @@
     synopsis: Handles the functions for requests
 
 """
+import os
 import uuid
 from datetime import datetime
+from urllib.parse import urljoin
 
-import os
 from flask import render_template, current_app, url_for, request as flask_request
 from flask_login import current_user
 from tempfile import NamedTemporaryFile
@@ -21,7 +22,8 @@ from app.constants import (
     event_type,
     role_name as role,
     ACKNOWLEDGMENT_DAYS_DUE,
-    user_type_request
+    USER_ID_DELIMITER,
+    user_type_request,
 )
 from app.constants.user_type_auth import ANONYMOUS_USER
 from app.constants.response_privacy import RELEASE_AND_PRIVATE
@@ -39,7 +41,6 @@ from app.models import (
     UserRequests,
     Roles,
     Files,
-    Responses
 )
 from app.response.utils import safely_send_and_add_email
 from app.upload.constants import upload_status
@@ -212,7 +213,7 @@ def create_request(title,
 
     if agency_administrators:
         # Generate a list of tuples(guid, auth_user_type) identifying the agency administrators
-        agency_administrators = [tuple(agency_user.split('::')) for agency_user in agency_administrators]
+        agency_administrators = [tuple(agency_user.split(USER_ID_DELIMITER)) for agency_user in agency_administrators]
 
         # b. Store all agency users objects in the UserRequests table as Agency users with Agency Administrator
         # privileges
@@ -373,7 +374,7 @@ def send_confirmation_email(request, agency, user):
     address = user.mailing_address
 
     # generates the view request page URL for this request
-    page = flask_request.host_url.strip('/') + url_for('request.view', request_id=request.id)
+    page = urljoin(flask_request.host_url, url_for('request.view', request_id=request.id))
 
     # grabs the html of the email message so we can store the content in the Emails object
     email_content = render_template("email_templates/email_confirmation.html", current_request=request,
@@ -395,7 +396,7 @@ def send_confirmation_email(request, agency, user):
                 request.id,
                 email_content,
                 subject,
-                to=[agency_default_email],
+                to=[agency.default_email],
             )
     except AssertionError:
         print('Must include: To, CC, or BCC')
