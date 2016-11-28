@@ -66,7 +66,7 @@ $(document).ready(function () {
         $("#filename").text("");
     });
 
-    $('#request-form').parsley().on('form:validate', function () {
+    $("#request-form").parsley().on("form:validate", function () {
         // Do stuff when parsley validates
         // TODO: this or combine (see the other new-request-* js files)
     });
