@@ -37,7 +37,7 @@ function previousHistory() {
         }
         document.getElementById("request-history-table").innerHTML = requestHistoryHtml;
     }
-    if (requestHistoryIndex == requestHistory.length - requestHistoryIndexShift) {
+    if (requestHistoryIndex === requestHistory.length - requestHistoryIndexShift) {
         $(".load-more-history").show();
     } else {
         $(".load-more-history").hide();

@@ -172,11 +172,11 @@ function deleteUpload(requestId,
     Send a DELETE request to the upload endpoint.
      */
     var data = {};
-    if (updated_only) {
-        data = {updated_only: true}
+    if (updatedOnly) {
+        data = {updated_only: true};
     }
-    else if (quarantined_only) {
-        data = {quarantined_only: true}
+    else if (quarantinedOnly) {
+        data = {quarantined_only: true};
     }
 
     $.ajax({
