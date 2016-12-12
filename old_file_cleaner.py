@@ -21,7 +21,7 @@ def remove_quarantined_files():
     quarantine_directory = current_app.config["UPLOAD_QUARANTINE_DIRECTORY"]
     search_quarantine = os.path.abspath('/quarantine/data')
     curpath = os.path.abspath(os.walk(search_quarantine))
-    for dirpath, dirnames, filenames in quarantine_directory:
+    for _, _, filenames in quarantine_directory:
         if Files in filenames:
             file_modified = datetime.timestamp(os.path.getmtime(search_quarantine))
             if datetime.now() - file_modified > timedelta(hours=24):
