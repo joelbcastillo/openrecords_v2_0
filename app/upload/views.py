@@ -5,6 +5,8 @@
 """
 import os
 
+import app.lib.file_utils as fu
+
 from flask import (
     request,
     jsonify,
@@ -17,10 +19,7 @@ from app.lib.utils import (
     b64decode_lenient,
     eval_request_bool,
 )
-from app.models import (
-    Responses,
-    Files,
-)
+from app.models import Responses
 from app.constants import UPDATED_FILE_DIRNAME
 from app.upload import upload
 from app.upload.constants import (
@@ -59,7 +58,7 @@ def post(request_id):
     files = request.files
     file_ = files[next(files.keys())]
     filename = secure_filename(file_.filename)
-    is_update = eval_request_bool(request.form.get('update'), False)
+    is_update = eval_request_bool(request.form.get('update'))
     if not is_update and upload_exists(request_id, filename):
         response = {
             "files": [{
@@ -167,12 +166,13 @@ def delete(r_id_type, r_id, filecode):
                 r_id = response.request_id
 
             path = ''
-            if eval_request_bool(request.form.get('quarantined_only'), False):
+            quarantined_only = eval_request_bool(request.form.get('quarantined_only'))
+            if quarantined_only:
                 path = os.path.join(
                     current_app.config['UPLOAD_QUARANTINE_DIRECTORY'],
                     r_id
                 )
-            elif eval_request_bool(request.form.get('updated_only'), False):
+            elif eval_request_bool(request.form.get('updated_only')):
                 path = os.path.join(
                     current_app.config['UPLOAD_DIRECTORY'],
                     r_id,
@@ -191,8 +191,17 @@ def delete(r_id_type, r_id, filecode):
                         r_id
                     )
             filepath = os.path.join(path, filename)
-            if path != '' and os.path.exists(filepath):
-                os.remove(filepath)
+            found = False
+            if path != '':
+                if quarantined_only:
+                    if os.path.exists(filepath):
+                        os.remove(filepath)
+                        found = True
+                else:
+                    if fu.exists(filepath):
+                        fu.remove(filepath)
+                        found = True
+            if found:
                 response = {"deleted": filename}
             else:
                 response = {"error": "Upload not found."}
@@ -222,7 +231,7 @@ def status():
             get_upload_key(
                 request.args['request_id'],
                 secure_filename(request.args['filename']),
-                eval_request_bool(request.args.get('for_update'), False)
+                eval_request_bool(request.args.get('for_update'))
             )
         )
         if status is not None:

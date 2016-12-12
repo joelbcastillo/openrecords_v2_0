@@ -3,7 +3,28 @@
  */
 $(document).ready(function () {
 
-    $('[data-toggle="popover"]').popover();
+    $("input[name='tz-name']").val(jstz.determine().name());
+
+    // ajax call to get and populate list of agencies choices based on selected category
+    $("#request-category").change(function() {
+        $.ajax({
+            url: "/request/agencies",
+            type: "GET",
+            data: {
+                category: $("#request-category").val()
+            },
+            success: function(data) {
+                var sel = $("#request-agency");
+                sel.empty();
+                for(var i =0; i < data.length; i++){
+                    var opt = document.createElement("option");
+                    opt.innerHTML = data[i][1];
+                    opt.value = data[i][0];
+                    sel.append(opt);
+                }
+            }
+        });
+    });
 
     // javascript to add tooltip popovers when selecting the title and description
     $('#request-title').attr({
@@ -42,6 +63,9 @@ $(document).ready(function () {
 
     // Limit the size of the file upload to 20 Mb. Second parameter is number of Mb's.
     $('#request-file').attr('data-parsley-max-file-size',"20");
+
+    // Specify container for file input parsley error message
+    $('#request-file').attr("data-parsley-errors-container", ".file-error");
 
     // Set name of the file to the text of filename div if file exists
     $("#request-file").change(function () {

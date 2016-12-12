@@ -7,8 +7,6 @@
         <h1><span class="duesoon">Due Soon</span></h1>
     {% elif request.status == status.OPEN %}
         <h1><span class="open">Open</span></h1>
-    {% elif request.status == status.RE_OPENED %}
-        <h1><span class="reopened">Re-Opened</span></h1>
     {% elif request.status == status.CLOSED %}
         <h1><span class="closed">Closed</span></h1>
     {% endif %}
@@ -17,7 +15,7 @@
     <h4>{{ request.agency.name }} </h4>
 
     {% if current_user.is_agency %}
-        {% if request.requester.is_anonymous %}
+        {% if request.requester.is_anonymous_requester %}
             {% include 'request/_edit_requester_info.html' %}
         {% endif %}
         <hr>
@@ -84,6 +82,6 @@
         {% if request.status == status.OPEN %}
             Acknowledgment<br>
         {% endif %}
-        Due Date: {{ request.get_formatted_due_date() }}
+        Due Date: {{ moment(request.due_date).format('MM/DD/YYYY') }}
     </p>
 </div>

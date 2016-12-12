@@ -34,11 +34,11 @@
                                     <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
                                     Delete
                                 </button>
+                                <button type="button" class="btn btn-primary response-modal-next">
+                                    Next
+                                    <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
+                                </button>
                             {% endif %}
-                            <button type="button" class="btn btn-primary response-modal-next">
-                                Next
-                                <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
-                            </button>
                         </div>
                     </div>
                     <div class ="second" hidden>
@@ -91,11 +91,8 @@
             <div class="delete" hidden>
                 <div class="modal-body">
                     <p>Are you sure you want to delete this response?</p>
-                    <p>If yes, please enter the following and then press DELETE.</p>
+                    <p>If yes, please enter "DELETE" in the area below and then press DELETE.</p>
                     <br>
-                    <p class="text-center">
-                        {{ response.request_id }}:{{ response.id }}
-                    </p>
                     <input type="text" class="text-center" name="delete-confirm-string" title="delete-confirm">
                 </div>
                 <div class="modal-footer">

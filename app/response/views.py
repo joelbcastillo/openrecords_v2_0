@@ -4,6 +4,9 @@
    :synopsis: Handles the response URL endpoints for the OpenRecords application
 """
 import os
+
+import app.lib.file_utils as fu
+
 from datetime import datetime
 
 from flask import (
@@ -13,7 +16,6 @@ from flask import (
     redirect,
     jsonify,
     current_app,
-    send_from_directory,
 )
 from flask_login import current_user
 
@@ -38,6 +40,8 @@ from app.response.utils import (
     add_extension,
     add_acknowledgment,
     add_denial,
+    add_closing,
+    add_reopening,
     add_instruction,
     get_file_links,
     process_upload_data,
@@ -131,6 +135,7 @@ def response_acknowledgment(request_id):
                        flask_request.form['info'].strip() or None,
                        flask_request.form['days'],
                        flask_request.form['date'],
+                       flask_request.form['tz-name'],
                        flask_request.form['email-summary'])
     return redirect(url_for('request.view', request_id=request_id))
 
@@ -148,6 +153,60 @@ def response_denial(request_id):
     add_denial(request_id,
                flask_request.form.getlist('reasons'),
                flask_request.form['email-summary'])
+    return redirect(url_for('request.view', request_id=request_id))
+
+
+@response.route('/closing/<request_id>', methods=['POST'])
+def response_closing(request_id):
+    """
+    Endpoint for closing a request that takes in form data from the front end.
+    Required form data include:
+        -reasons: a list of closing reasons
+        -email-summary: string email body from the confirmation page
+
+    :param request_id: FOIL request ID
+
+    :return: redirect to view request page
+    """
+    required_fields = ['reasons', 'email-summary']
+
+    for field in required_fields:
+        if flask_request.form.get(field) is None:
+            flash('Uh Oh, it looks like the closing {} is missing! '
+                  'This is probably NOT your fault.'.format(field), category='danger')
+            return redirect(url_for('request.view', request_id=request_id))
+
+        add_closing(request_id,
+                    flask_request.form.getlist('reasons'),
+                    flask_request.form['email-summary'])
+        return redirect(url_for('request.view', request_id=request_id))
+
+
+@response.route('/reopening/<request_id>', methods=['POST'])
+def response_reopening(request_id):
+    """
+    Endpoint for reopening a request that takes in form data from the frontend.
+    Required form data include:
+        -date: string of new date of request completion
+        -tz-name: name of the timezone the user is accessing the application in
+        -email-summary: string email body from the confirmation page
+
+    :param request_id: FOIL request ID
+
+    :return: redirect to view request page
+    """
+    required_fields = ['date', 'tz-name', 'email-summary']
+
+    for field in required_fields:
+        if not flask_request.form.get(field, ''):
+            flash('Uh Oh, it looks like the acknowledgement {} is missing! '
+                  'This is probably NOT your fault.'.format(field), category='danger')
+            return redirect(url_for('request.view', request_id=request_id))
+
+    add_reopening(request_id,
+                  flask_request.form['date'],
+                  flask_request.form['tz-name'],
+                  flask_request.form['email-summary'])
     return redirect(url_for('request.view', request_id=request_id))
 
 
@@ -182,6 +241,7 @@ def response_extension(request_id):
                   extension_data['length'],
                   extension_data['reason'],
                   extension_data['due-date'],
+                  extension_data['tz-name'],
                   extension_data['email-extension-summary'])
     return redirect(url_for('request.view', request_id=request_id))
 
@@ -340,7 +400,7 @@ def patch(response_id):
     Ex (for delete):
     {
         'deleted': true,
-        'confirmation': string checked against '<request_id>:<response_id>'
+        'confirmation': string checked against 'DELETE'
             if the strings do not match, the 'deleted' field will not be updated
     }
 
@@ -422,8 +482,8 @@ def get_response_content(response_id):
                 token=token, response_id=response_id).first()
             if resptok is not None:
                 if (datetime.utcnow() < resptok.expiration_date
-                   and os.path.exists(filepath)):
-                    return send_from_directory(*filepath_parts, as_attachment=True)
+                   and fu.exists(filepath)):
+                    return fu.send_file(*filepath_parts, as_attachment=True)
                 else:
                     delete_object(resptok)
         else:
@@ -433,8 +493,8 @@ def get_response_content(response_id):
                         request_id=response.request_id,
                         user_guid=current_user.guid,
                         auth_user_type=current_user.auth_user_type).first() is not None
-                   and os.path.exists(filepath)):
-                    return send_from_directory(*filepath_parts, as_attachment=True)
+                   and fu.exists(filepath)):
+                    return fu.send_file(*filepath_parts, as_attachment=True)
             else:
                 return redirect(url_for(
                     'auth.index',

@@ -82,7 +82,7 @@
                                     {% include "response/add_extension.html" %}
                                 </div>
                                 <div class="tab-pane" id="close-request">
-                                    Close Request Content
+                                    {% include "response/add_closing.html" %}
                                 </div>
                                 <div class="tab-pane" id="add-user">
                                     Add User Content
@@ -96,7 +96,7 @@
                             {% endif %}
                         {% else %}
                             <div class="tab-pane active" id="reopen-request">
-                                Re-Open Request Content
+                                {% include "response/add_reopening.html" %}
                             </div>
                         {% endif %}
                     </div>
@@ -140,7 +140,7 @@
     {% endif %}
     {% include "request/fileupload_add_file.js.html" %}
     {% include "request/fileupload_update_templates.js.html" %}
-    {% if current_user.is_agency and request.requester.is_anonymous %}
+    {% if current_user.is_agency and request.requester.is_anonymous_requester %}
         {% include 'request/edit_requester_info.js.html' %}
     {% endif %}
     {% include 'request/_view_request_edit_visibility.js.html' %}
@@ -152,4 +152,6 @@
     {% include 'response/add_instruction.js.html' %}
     {% include 'response/add_acknowledgment.js.html' %}
     {% include 'response/add_denial.js.html' %}
+    {% include 'response/add_closing.js.html' %}
+    {% include 'response/add_reopening.js.html' %}
 {% endblock %}

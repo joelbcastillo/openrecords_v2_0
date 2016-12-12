@@ -109,14 +109,16 @@ def get_request_responses():
             'id': response.id,
             'type': response.type
         }
-        if eval_request_bool(flask_request.args.get('with_template'), False):
+        if eval_request_bool(flask_request.args.get('with_template')):
             row = render_template(
                 template_path + 'row.html',
                 response=response,
                 row_num=start + i + 1,
                 response_type=response_type,
+                determination_type=determination_type,
                 show_preview=not (response.type == response_type.DETERMINATION and
-                                  response.dtype == determination_type.ACKNOWLEDGMENT)
+                                  (response.dtype == determination_type.ACKNOWLEDGMENT or
+                                   response.dtype == determination_type.REOPENING))
             )
             modal = render_template(
                 template_path + 'modal.html',

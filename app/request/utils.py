@@ -9,6 +9,9 @@
 """
 import os
 import uuid
+
+import app.lib.file_utils as fu
+
 from datetime import datetime
 from urllib.parse import urljoin
 
@@ -30,9 +33,7 @@ from app.constants.response_privacy import RELEASE_AND_PRIVATE
 from app.constants.submission_methods import DIRECT_INPUT
 from app.lib.date_utils import get_following_date, get_due_date
 from app.lib.db_utils import create_object, update_object
-from app.lib.file_utils import get_mime_type
 from app.lib.user_information import create_mailing_address
-from app.lib.utils import get_file_hash
 from app.models import (
     Requests,
     Agencies,
@@ -41,6 +42,7 @@ from app.models import (
     UserRequests,
     Roles,
     Files,
+    ResponseTokens
 )
 from app.response.utils import safely_send_and_add_email
 from app.upload.constants import upload_status
@@ -54,6 +56,8 @@ from app.upload.utils import (
 
 def create_request(title,
                    description,
+                   category,
+                   tz_name,
                    agency=None,
                    first_name=None,
                    last_name=None,
@@ -71,6 +75,7 @@ def create_request(title,
 
     :param title: request title
     :param description: detailed description of the request
+    :param tz_name: client's timezone name
     :param agency: agency_ein selected for the request
     :param first_name: first name of the requester
     :param last_name: last name of the requester
@@ -101,13 +106,14 @@ def create_request(title,
                       else get_following_date(date_created))
 
     # 4b. Calculate Request Due Date (month day year but time is always 5PM, 5 Days after submitted date)
-    due_date = get_due_date(date_submitted, ACKNOWLEDGMENT_DAYS_DUE)
+    due_date = get_due_date(date_submitted, ACKNOWLEDGMENT_DAYS_DUE, tz_name)
 
     # 5. Create Request
     request = Requests(
         id=request_id,
         title=title,
         agency_ein=agency,
+        category=category,
         description=description,
         date_created=date_created,
         date_submitted=date_submitted,
@@ -139,21 +145,15 @@ def create_request(title,
     if upload_path is not None:
         # 7. Move file to upload directory
         upload_path = _move_validated_upload(request_id, upload_path)
-
         # 8. Create response object
-        title = ''  # TODO: add optional title field to new-request page?
-        name = os.path.basename(upload_path)
-        mime_type = get_mime_type(request_id, upload_path)
-        size = os.path.getsize(upload_path)
-        hash_ = get_file_hash(upload_path)
-
+        filename = os.path.basename(upload_path)
         response = Files(request_id,
                          RELEASE_AND_PRIVATE,
-                         title,
-                         name,
-                         mime_type,
-                         size,
-                         hash_)
+                         filename,
+                         filename,
+                         fu.get_mime_type(upload_path),
+                         fu.getsize(upload_path),
+                         fu.get_hash(upload_path))
         create_object(obj=response)
 
         # 8. Create upload Event
@@ -161,10 +161,14 @@ def create_request(title,
                               auth_user_type=user.auth_user_type,
                               response_id=response.id,
                               request_id=request_id,
-                              type=event_type.FILE_ADDED,
+                              type_=event_type.FILE_ADDED,
                               timestamp=datetime.utcnow(),
                               new_value=response.val_for_events)
         create_object(upload_event)
+
+        # Create response token if requester is anonymous
+        if current_user.is_anonymous or current_user.is_agency:
+            create_object(ResponseTokens(response.id))
 
     role_to_user = {
         role.PUBLIC_REQUESTER: current_user.is_public,
@@ -179,7 +183,7 @@ def create_request(title,
     event = Events(user_id=user.guid,
                    auth_user_type=user.auth_user_type,
                    request_id=request_id,
-                   type=event_type.REQ_CREATED,
+                   type_=event_type.REQ_CREATED,
                    timestamp=timestamp,
                    new_value=request.val_for_events)
     create_object(event)
@@ -187,7 +191,7 @@ def create_request(title,
         agency_event = Events(user_id=current_user.guid,
                               auth_user_type=current_user.auth_user_type,
                               request_id=request.id,
-                              type=event_type.AGENCY_REQ_CREATED,
+                              type_=event_type.AGENCY_REQ_CREATED,
                               timestamp=timestamp)
         create_object(agency_event)
 
@@ -306,11 +310,11 @@ def _move_validated_upload(request_id, tmp_path):
     dst_dir = os.path.join(
         current_app.config['UPLOAD_DIRECTORY'],
         request_id)
-    if not os.path.exists(dst_dir):
-        os.mkdir(dst_dir)
+    if not fu.exists(dst_dir):
+        fu.mkdir(dst_dir)
     valid_name = os.path.basename(tmp_path).split('.', 1)[1]  # remove 'tmp' prefix
     valid_path = os.path.join(dst_dir, valid_name)
-    os.rename(tmp_path, valid_path)
+    fu.move(tmp_path, valid_path)
     upload_redis.set(
         get_upload_key(request_id, valid_name),
         upload_status.READY)

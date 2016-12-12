@@ -1,6 +1,9 @@
 import os
 import uuid
 import random
+
+import app.lib.file_utils as fu
+
 from itertools import product
 from string import (
     ascii_lowercase,
@@ -19,7 +22,6 @@ from app.constants import (
 )
 from app.constants.response_privacy import PRIVATE
 from app.constants.role_name import PUBLIC_REQUESTER
-from app.lib.utils import get_file_hash
 from app.models import (
     Requests,
     Files,
@@ -65,14 +67,15 @@ class RequestsFactory(object):
             date_created=date_created,
             date_submitted=date_submitted,
             due_date=get_due_date(date_submitted,
-                                  ACKNOWLEDGMENT_DAYS_DUE),
+                                  ACKNOWLEDGMENT_DAYS_DUE,
+                                  "US/Eastern"),
             submission=submission_methods.DIRECT_INPUT,
             status=request_status.OPEN)
         create_object(self.request)
         self.requester = Users(
             guid=generate_user_guid(user_type_auth.PUBLIC_USER_NYC_ID),
             auth_user_type=user_type_auth.PUBLIC_USER_NYC_ID,
-            agency=agency_ein,
+            agency_ein=agency_ein,
             first_name='Jane',
             last_name='Doe',
             email='jdizzle@email.com',
@@ -105,8 +108,8 @@ class RequestsFactory(object):
         self.filepaths.append(filepath)
 
         # create an empty file if the specified path does not exist
-        if not os.path.exists(filepath):
-            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        if not fu.exists(filepath):
+            fu.makedirs(os.path.dirname(filepath), exist_ok=True)
             with open(filepath, 'w') as fp:
                 fp.write(contents or
                          ''.join(random.choice(ascii_letters)
@@ -118,8 +121,8 @@ class RequestsFactory(object):
             title or filename,
             filename,
             mime_type,
-            os.path.getsize(filepath),
-            get_file_hash(filepath)
+            fu.getsize(filepath),
+            fu.get_hash(filepath)
         )
         # TODO: add Events FILE_ADDED
         create_object(response)
@@ -145,8 +148,8 @@ class RequestsFactory(object):
         """
         if self.clean:
             for path in self.filepaths:
-                if os.path.exists(path):
-                    os.remove(path)
+                if fu.exists(path):
+                    fu.remove(path)
 
 
 def create_user(auth_type=user_type_auth.PUBLIC_USER_NYC_ID):
@@ -162,10 +165,10 @@ def create_user(auth_type=user_type_auth.PUBLIC_USER_NYC_ID):
     user = Users(
         guid=generate_user_guid(auth_type),
         auth_user_type=auth_type,
-        agency=(random.choice([ein[0] for ein in
-                              Agencies.query.with_entities(Agencies.ein).all()])
-                if auth_type == user_type_auth.AGENCY_USER
-                else None),
+        agency_ein=(random.choice([ein[0] for ein in
+                                  Agencies.query.with_entities(Agencies.ein).all()])
+                    if auth_type == user_type_auth.AGENCY_USER
+                    else None),
         first_name=firstname,
         last_name=lastname,
         email='{}{}@email.com'.format(firstname[0].lower(), lastname.lower()),
@@ -201,12 +204,12 @@ def create_requests_search_set(requester, other_requester):
                 generate_request_id(agency_ein),
                 title=title,
                 description=description,
-                agency_description=agency_description,
                 agency_ein=agency_ein,
                 date_created=date_created,
                 date_submitted=date_submitted,
                 due_date=get_due_date(date_submitted,
-                                      ACKNOWLEDGMENT_DAYS_DUE),
+                                      ACKNOWLEDGMENT_DAYS_DUE,
+                                      "US/Eastern"),
                 submission=submission_methods.DIRECT_INPUT,
                 status=random.choice((request_status.OPEN,
                                       request_status.CLOSED,
@@ -218,6 +221,7 @@ def create_requests_search_set(requester, other_requester):
                     'agency_description': bool(agency_desc_private)
                 }
             )
+            request.agency_description = agency_description
             create_object(request)
             user_request = UserRequests(
                 user_guid=(requester.guid if is_requester

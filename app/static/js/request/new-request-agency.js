@@ -3,7 +3,7 @@
  */
 $(document).ready(function () {
 
-    $('[data-toggle="popover"]').popover();
+    $("input[name='tz-name']").val(jstz.determine().name());
 
     // Prevent user from entering a non numeric value into phone and fax field
     $('#phone').keypress(function(key) {
@@ -88,6 +88,9 @@ $(document).ready(function () {
 
     // Limit the size of the file upload to 20 Mb. Second parameter is number of Mb's.
     $('#request-file').attr('data-parsley-max-file-size',"20");
+
+    // Specify container for file input parsley error message
+    $('#request-file').attr("data-parsley-errors-container", ".file-error");
 
     // Set name of the file to the text of filename div if file exists
     $("#request-file").change(function () {

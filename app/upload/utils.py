@@ -7,6 +7,9 @@
 import os
 import magic
 import subprocess
+
+import app.lib.file_utils as fu
+
 from flask import current_app
 from app import (
     celery,
@@ -75,7 +78,7 @@ def is_valid_file_type(obj):
     # 1. Check using default
     mime_type = magic.from_buffer(buffer, mime=True)
     is_valid = mime_type in ALLOWED_MIMETYPES
-    if is_valid and current_app.config['MAGIC_FILE'] != '':
+    if is_valid and current_app.config['MAGIC_FILE']:
         # 3. Check using custom
         m = magic.Magic(
             magic_file=current_app.config['MAGIC_FILE'],
@@ -148,15 +151,15 @@ def scan_and_complete_upload(request_id, filepath, is_update=False):
                 dst_dir,
                 UPDATED_FILE_DIRNAME
             )
-        if not os.path.exists(dst_dir):
+        if not fu.exists(dst_dir):
             try:
-                os.makedirs(dst_dir)
+                fu.makedirs(dst_dir)
             except OSError as e:
-                # in the time between the call to os.path.exists
-                # and os.makedirs, the directory was created
+                # in the time between the call to fu.exists
+                # and fu.makedirs, the directory was created
                 print(e.args)
 
-        os.rename(
+        fu.move(
             filepath,
             os.path.join(dst_dir, filename)
         )
