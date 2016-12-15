@@ -1,8 +1,9 @@
 "use strict";
 
 function bindFileUpload(target,
-                        requestId,
-                        forUpdate,
+                        request_id,
+                        for_update,
+                        response_id,
                         uploadTemplateId,
                         downloadTemplateId,
                         nextButton) {
@@ -10,8 +11,9 @@ function bindFileUpload(target,
     Binds jquery file upload to the element identified by "target"
 
     @param {string} target - jquery selector string (ex. "#fileupload")
-    @param {string} requestId - FOIL request id
-    @param {bool} forUpdate - editing a file?
+    @param {string} request_id - FOIL request id
+    @param {bool} for_update - editing a file?
+    @param {int} response_id - response id of file being replaced
     @param {string} uploadTemplateId - jquery file upload uploadTemplateId
     @param {string} downloadTemplateId - jquery file upload downloadTemplateId
     @param {selector} nextButton - jquery selector for next button of file response workflow
@@ -22,8 +24,8 @@ function bindFileUpload(target,
 
     $(target).fileupload({
         //xhrFields: {withCredentials: true},  // send cross-domain cookies
-        url: "/upload/" + requestId,
-        formData: forUpdate ? {update: true} : {},
+        url: "/upload/" + request_id,
+        formData: for_update ? {update: true, response_id: response_id} : {},
         uploadTemplateId: uploadTemplateId,
         downloadTemplateId: downloadTemplateId,
         maxChunkSize: 512000,  // 512 kb
@@ -45,7 +47,11 @@ function bindFileUpload(target,
         },
         chunkfail: function (e, data) {
             // remove existing partial upload
-            deleteUpload(requestId, encodeName(data.files[0].name), false, true);
+            deleteUpload(request_id, encodeName(data.files[0].name), false, true);
+            // Re-enable 'next' button
+            if (for_update) {
+                $(nextButton).attr('disabled', false);
+            }
         }
     }).bind("fileuploaddone", function (e, data) {
         // blueimp says that this will only be called on a successful upload
@@ -66,18 +72,19 @@ function bindFileUpload(target,
             }
         }
     }).bind("fileuploadadd", function (e, data) {
-        if (forUpdate) {
-            // Replace added file OR Delete uploaded file
-            var elemFiles = $(target).find(".files");
-            var templatesUpload = elemFiles.children(".template-upload");
-            var templatesDownload = elemFiles.children(".template-download");
-            if (templatesUpload.length > 0) {
-                templatesUpload.remove();
+        if (for_update) {
+            var elem_files = $(target).find(".files");
+            var templates_upload = elem_files.children(".template-upload");
+            var templates_download = elem_files.children(".template-download");
+            // Remove template for added file (pre-upload)
+            if (templates_upload.length > 0) {
+                templates_upload.remove();
             }
-            if (templatesDownload.length > 0) {
-                for (var i = 0; i < templatesDownload.length; i++) {
-                    var fileIdentifier = $(templatesDownload[i]).attr("id");
-                    if (typeof fileIdentifier != "undefined") {
+            // Remove template for uploaded file and delete corresponding file
+            if (templates_download.length > 0) {
+                for (var i = 0; i < templates_download.length; i++) {
+                    var file_identifier = $(templates_download[i]).attr("id");
+                    if (typeof file_identifier != "undefined") {
                         // if this template is for a successful upload
                         deleteUpload(requestId, fileIdentifier, true);
                     }

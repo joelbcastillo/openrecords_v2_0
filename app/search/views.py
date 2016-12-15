@@ -1,20 +1,21 @@
+import csv
+from datetime import datetime
+from io import StringIO, BytesIO
+
 from flask import (
     request,
-    jsonify,
     render_template,
+    jsonify,
 )
+from flask.helpers import send_file
 from flask_login import current_user
-from app import es
+
+from app.lib.date_utils import get_timezone_offset
+from app.lib.utils import eval_request_bool
+from app.models import Requests
 from app.search import search
-from app.search.constants import (
-    INDEX,
-    DEFAULT_HITS_SIZE,
-)
-from app.lib.utils import (
-    eval_request_bool,
-    InvalidUserException,
-)
-# TODO: HOW TO DENY ACCESS TO ES PORT FOR ANYTHING BUT APP?
+from app.search.constants import DEFAULT_HITS_SIZE, ALL_RESULTS_CHUNKSIZE
+from app.search.utils import search_requests, convert_dates
 
 
 @search.route("/", methods=['GET'])
@@ -25,20 +26,10 @@ def test():
 @search.route("/requests", methods=['GET'])
 def requests():
     """
-    Query string parameters:
-    - query: what is typed into the search box
-    - foil_id: (optional, default: false) search by id?
-    - title: (optional, default: true) search by title?
-    - description: (optional, default: true) search by description?
-    - agency_description: (optional, default: true) search by agency description?
-    - by_phrase: (optional, default: false) use phrase matching instead of standard full-text?
-    - size: (optional, default: 10) number of results to return
-    - highlight: (optional, default: false) show highlights?
-        NOTE: if true, will come at a slight performance cost (in order to
-        restrict highlights to public fields, iterating over elasticsearch
-        query results is required)
+    For request parameters, see app.search.utils.search_requests
 
-    - TODO: agency filter
+    All Users can search by:
+    - FOIL ID
 
     Anonymous Users can search by:
     - Title (public only)
@@ -49,200 +40,193 @@ def requests():
     - Agency Description (public only)
     - Description (if user is requester)
 
-    Agency user can search by:
+    Agency Users can search by:
     - Title
     - Agency Description
     - Description
+    - Requester Name
+
+    All Users can filter by:
+    - Status, Open (anything not Closed if not agency user)
+    - Status, Closed
+    - Date Received
+    - Agency
+
+    Only Agency Users can filter by:
+    - Status, In Progress
+    - Status, Due Soon
+    - Status, Overdue
+    - Date Due
+
     """
-
-    # FOR USER TESTING
-    # from app.models import Users
-    # user = Users.query.first()
-    # login_user(user, force=True)
-
-    query = request.args.get('query')
-    if query is None:
-        return jsonify({"error": "'query' field missing"}), 422
-
-    use_id = eval_request_bool(request.args.get('foil_id'), False)
-    use_title = eval_request_bool(request.args.get('title'))
-    use_agency_desc = eval_request_bool(request.args.get('agency_description'))
-    use_description = (eval_request_bool(request.args.get('description'))
-                       if not current_user.is_anonymous
-                       else False)
-
-    if not any((use_id, use_title, use_agency_desc, use_description)):
-        # nothing to query on
-        return jsonify({}), 200
-
-    highlight = eval_request_bool(request.args.get('highlight'), False)
+    try:
+        agency_ein = request.args.get('agency_ein', '')
+    except ValueError:
+        agency_ein = None
 
     try:
         size = int(request.args.get('size', DEFAULT_HITS_SIZE))
     except ValueError:
         size = DEFAULT_HITS_SIZE
 
-    if request.args.get('by_phrase', False):
-        match_type = 'match_phrase'
-    else:
-        match_type = 'match'  # full-text
+    try:
+        start = int(request.args.get('start'), 0)
+    except ValueError:
+        start = 0
 
-    fields = {
-        'title': use_title,
-        'description': use_description,
-        'agency_description': use_agency_desc
-    }
-
-    es_requester_id = None
-    if use_id:
-        dsl = {
-            'query': {
-                'wildcard': {
-                    '_uid': 'request#FOIL-*{}*'.format(query)
-                }
-            }
-        }
-    else:
-        conditions = []
-        if current_user.is_agency:
-            for name, add in fields.items():
-                if add:
-                    conditions.append({
-                        match_type: {name: query}
-                    })
-            dsl = {
-                'query': {
-                    'bool': {
-                        'should': conditions
-                    }
-                }
-            }
-        elif current_user.is_anonymous:
-            if use_title:
-                conditions.append({
-                    'bool': {
-                        'must': [
-                            {match_type: {'title': query}},
-                            {'term': {'title_private': False}}
-                        ]
-                    }
-                })
-            if use_agency_desc:
-                conditions.append({
-                    'bool': {
-                        'must': [
-                            {match_type: {'agency_description': query}},
-                            {'term': {'agency_description_private': False}}
-                        ]
-                    }
-                })
-            dsl = {
-                'query': {
-                    'bool': {
-                        'should': conditions
-                    }
-                }
-            }
-        elif current_user.is_public:
-            es_requester_id = current_user.get_id()
-            if use_title:
-                conditions.append({
-                    'bool': {
-                        'must': [
-                            {match_type: {'title': query}},
-                            {'bool': {
-                                'should': [
-                                    {'term': {'requester_id': es_requester_id}},
-                                    {'term': {'title_private': False}}
-                                ]
-                            }}
-                        ]
-                    }
-                })
-            if use_agency_desc:
-                conditions.append({
-                    'bool': {
-                        'must': [
-                            {match_type: {'agency_description': query}},
-                            {'term': {'agency_description_private': False}}
-                        ]
-                    }
-                })
-            if use_description:
-                conditions.append({
-                    'bool': {
-                        'must': [
-                            {match_type: {'description': query}},
-                            {'term': {'requester_id': es_requester_id}}
-                        ]
-                    }
-                })
-            dsl = {
-                'query': {
-                    'bool': {
-                        'should': conditions
-                    }
-                }
-            }
-        else:
-            raise InvalidUserException(current_user)
-
-        # Add highlights
-        if highlight:
-            highlight_fields = {}
-            for name, add in fields.items():
-                if add:
-                    highlight_fields[name] = {}
-            dsl.update(
-                {
-                    'highlight': {
-                        'pre_tags': ['<span class="highlight">'],
-                        'post_tags': ['</span>'],
-                        'fields': highlight_fields
-                    }
-                }
-            )
-
-    result = es.search(
-        index=INDEX,
-        doc_type='request',
-        body=dsl,
-        _source=['requester_id',
-                 'title_private',
-                 'agency_description_private',
-                 'public_title'],
-        size=size,
+    query = request.args.get('query')
+    results = search_requests(
+        query,
+        eval_request_bool(request.args.get('foil_id')),
+        eval_request_bool(request.args.get('title')),
+        eval_request_bool(request.args.get('agency_description')),
+        eval_request_bool(request.args.get('description')) if not current_user.is_anonymous else False,
+        eval_request_bool(request.args.get('requester_name')) if current_user.is_agency else False,
+        request.args.get('date_rec_from'),
+        request.args.get('date_rec_to'),
+        request.args.get('date_due_from'),
+        request.args.get('date_due_to'),
+        agency_ein,
+        eval_request_bool(request.args.get('open')),
+        eval_request_bool(request.args.get('closed')),
+        eval_request_bool(request.args.get('in_progress')) if current_user.is_agency else False,
+        eval_request_bool(request.args.get('due_soon')) if current_user.is_agency else False,
+        eval_request_bool(request.args.get('overdue')) if current_user.is_agency else False,
+        size,
+        start,
+        request.args.get('sort_date_submitted'),
+        request.args.get('sort_date_due'),
+        request.args.get('sort_title'),
+        # eval_request_bool(request.args.get('by_phrase')),
+        # eval_request_bool(request.args.get('highlight')),
     )
 
-    if highlight and not use_id:
-        _process_highlights(result, es_requester_id)
+    # format results
+    total = results["hits"]["total"]
+    formatted_results = None
+    if total != 0:
+        convert_dates(results)
+        formatted_results = render_template("request/result_row.html",
+                                            requests=results["hits"]["hits"],
+                                            query=query)  # TODO: remove after testing
+    return jsonify({
+        "count": len(results["hits"]["hits"]),
+        "total": total,
+        "results": formatted_results
+    }), 200
 
-    return jsonify(result), 200
 
-
-def _process_highlights(results, requester_id=None):
+@search.route("/requests/<doc_type>", methods=['GET'])
+def requests_doc(doc_type):
     """
-    Removes highlights for private and non-requester fields.
-    Used for non-agency users.
+    Converts and sends the a search result-set as a
+    file of the specified document type.
+    - Filtering on set size is ignored; all results are returned.
+    - Currently only supports CSVs.
 
-    Why this is necessary:
-    https://github.com/elastic/elasticsearch/issues/6787
+    Document name format: "FOIL_requests_results_<timestamp:MM_DD_YYYY_at_HH_mm_pp>"
 
-    :param results: elasticsearch json search results
-    :param requester_id: id of requester as it is exists in results
+    In addition to the request parameters required for searching,
+    a client's time zone name (param: tz_name) may be provided.
+    Doing so will offset the timestamp present in the file name and
+    in any date-specific result fields.
+
+    :param doc_type: document type ('csv' only)
     """
-    if not current_user.is_agency:
-        for hit in results['hits']['hits']:
-            is_requester = (requester_id == hit['_source']['requester_id']
-                            if requester_id
-                            else False)
-            if ('title' in hit['highlight']
-                and hit['_source']['title_private']
-                and (current_user.is_anonymous or not is_requester)):
-                hit['highlight'].pop('title')
-            if ('agency_description' in hit['highlight']
-                and hit['_source']['agency_description_private']):
-                hit['highlight'].pop('agency_description')
-            if ('description' in hit['highlight']
-                and not is_requester):
-                hit['highlight'].pop('description')
+    if current_user.is_agency and doc_type.lower() == 'csv':
+        try:
+            agency_ein = request.args.get('agency_ein', '')
+        except ValueError:
+            agency_ein = None
+
+        tz_name = request.args.get('tz_name')
+
+        start = 0
+        buffer = StringIO()  # csvwriter cannot accept BytesIO
+        writer = csv.writer(buffer)
+        writer.writerow(["FOIL ID",
+                         "Agency",
+                         "Title",
+                         "Description",
+                         "Agency Description",
+                         "Date Created",
+                         "Date Received",
+                         "Date Due",
+                         "Requester Name",
+                         "Requester Email",
+                         "Requester Title",
+                         "Requester Organization",
+                         "Requester Phone Number",
+                         "Requester Fax Number",
+                         "Requester Address 1",
+                         "Requester Address 2",
+                         "Requester City",
+                         "Requester State",
+                         "Requester Zipcode",
+                         "Assigned User Emails"])
+        while True:
+            results = search_requests(
+                request.args.get('query'),
+                eval_request_bool(request.args.get('foil_id')),
+                eval_request_bool(request.args.get('title')),
+                eval_request_bool(request.args.get('agency_description')),
+                eval_request_bool(request.args.get('description')),
+                eval_request_bool(request.args.get('requester_name')),
+                request.args.get('date_rec_from'),
+                request.args.get('date_rec_to'),
+                request.args.get('date_due_from'),
+                request.args.get('date_due_to'),
+                agency_ein,
+                eval_request_bool(request.args.get('open')),
+                eval_request_bool(request.args.get('closed')),
+                eval_request_bool(request.args.get('in_progress')),
+                eval_request_bool(request.args.get('due_soon')),
+                eval_request_bool(request.args.get('overdue')),
+                ALL_RESULTS_CHUNKSIZE,
+                start,
+                request.args.get('sort_date_submitted'),
+                request.args.get('sort_date_due'),
+                request.args.get('sort_title'),
+            )
+            total = results["hits"]["total"]
+            if total != 0:
+                convert_dates(results, tz_name=tz_name)
+                for result in results["hits"]["hits"]:
+                    r = Requests.query.filter_by(id=result["_id"]).one()
+                    mailing_address = (r.requester.mailing_address
+                                       if r.requester.mailing_address is not None
+                                       else {})
+                    writer.writerow([
+                        result["_id"],
+                        result["_source"]["agency_name"],
+                        result["_source"]["title"],
+                        result["_source"]["description"],
+                        result["_source"]["agency_description"],
+                        result["_source"]["date_created"],
+                        result["_source"]["date_submitted"],
+                        result["_source"]["date_due"],
+                        result["_source"]["requester_name"],
+                        r.requester.email,
+                        r.requester.title,
+                        r.requester.organization,
+                        r.requester.phone_number,
+                        r.requester.fax_number,
+                        mailing_address.get('address_one'),
+                        mailing_address.get('address_two'),
+                        mailing_address.get('city'),
+                        mailing_address.get('state'),
+                        mailing_address.get('zip'),
+                        ", ".join(u.email for u in r.agency_users)])
+            start += ALL_RESULTS_CHUNKSIZE
+            if start > total:
+                break
+        if total != 0:
+            dt = datetime.utcnow()
+            timestamp = dt + get_timezone_offset(dt, tz_name) if tz_name is not None else dt
+            return send_file(
+                BytesIO(buffer.getvalue().encode('UTF-8')),  # convert to bytes
+                attachment_filename="FOIL_requests_results_{}.csv".format(
+                    timestamp.strftime("%m_%d_%Y_at_%I_%M_%p")),
+                as_attachment=True
+            )
+    return '', 400

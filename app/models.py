@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSON
 from app import db, es, calendar
 from app.constants.request_date import RELEASE_PUBLIC_DAYS
 from app.constants import (
+    ES_DATETIME_FORMAT,
     USER_ID_DELIMITER,
     DEFAULT_RESPONSE_TOKEN_EXPIRY_DAYS,
     permission,
@@ -24,7 +25,6 @@ from app.constants import (
     response_privacy,
     submission_methods,
 )
-from app.search.constants import INDEX
 
 
 class Roles(db.Model):
@@ -127,13 +127,37 @@ class Agencies(db.Model):
     administrators - an array of user id strings that identify default admins for an agencies requests
     """
     __tablename__ = 'agencies'
-    ein = db.Column(db.Integer, primary_key=True)  # FIXME: add length 3 if possible
-    category = db.Column(db.String(256))
+    ein = db.Column(db.String(4), primary_key=True)
+    parent_ein = db.Column(db.String(3))
+    categories = db.Column(ARRAY(db.String(256)))
     name = db.Column(db.String(256), nullable=False)
     next_request_number = db.Column(db.Integer(), db.Sequence('request_seq'))
     default_email = db.Column(db.String(254))
     appeals_email = db.Column(db.String(254))
-    administrators = db.Column(ARRAY(db.String))
+    is_active = db.Column(db.Boolean(), default=False)
+
+    administrators = db.relationship(
+        'Users',
+        primaryjoin="and_(Agencies.ein == Users.agency_ein, "
+                    "Users.is_agency_active == True, "
+                    "Users.is_agency_admin == True)"
+    )
+    standard_users = db.relationship(
+        'Users',
+        primaryjoin="and_(Agencies.ein == Users.agency_ein, "
+                    "Users.is_agency_active == True, "
+                    "Users.is_agency_admin == False)"
+    )
+    active_users = db.relationship(
+        'Users',
+        primaryjoin="and_(Agencies.ein == Users.agency_ein, "
+                    "Users.is_agency_active == True)"
+    )
+    inactive_users = db.relationship(
+        'Users',
+        primaryjoin="and_(Agencies.ein == Users.agency_ein, "
+                    "Users.is_agency_active == False)"
+    )
 
     @classmethod
     def populate(cls):
@@ -146,11 +170,13 @@ class Agencies(db.Model):
             for row in dictreader:
                 agency = cls(
                     ein=row['ein'],
-                    category=row['category'],
+                    parent_ein=row['parent_ein'],
+                    categories=row['categories'].split(','),
                     name=row['name'],
                     next_request_number=row['next_request_number'],
                     default_email=row['default_email'],
-                    appeals_email=row['appeals_email']
+                    appeals_email=row['appeals_email'],
+                    is_active=eval(row['is_active'])
                 )
                 db.session.add(agency)
             db.session.commit()
@@ -166,7 +192,7 @@ class Users(UserMixin, db.Model):
     guid - a string that contains the unique guid of users
     auth_user_type - a string that tells what type of a user they are (agency user, helper, etc.)
     guid and auth_user_type are combined to create a composite primary key
-    agency - a foreign key that links to the primary key of the agency table
+    agency_ein - a foreign key that links to the primary key of the agency table
     email - a string containing the user's email
     first_name - a string containing the user's first name
     middle_initial - a string containing the user's middle initial
@@ -192,7 +218,9 @@ class Users(UserMixin, db.Model):
                 user_type_auth.ANONYMOUS_USER,
                 name='auth_user_type'),
         primary_key=True)
-    agency = db.Column(db.Integer, db.ForeignKey('agencies.ein'))
+    agency_ein = db.Column(db.String(4), db.ForeignKey('agencies.ein'))
+    is_agency_admin = db.Column(db.Boolean, nullable=False, default=False)
+    is_agency_active = db.Column(db.Boolean, nullable=False, default=False)
     first_name = db.Column(db.String(32), nullable=False)
     middle_initial = db.Column(db.String(1))
     last_name = db.Column(db.String(64), nullable=False)
@@ -205,6 +233,8 @@ class Users(UserMixin, db.Model):
     fax_number = db.Column(db.String(15))
     mailing_address = db.Column(JSON)  # TODO: define validation for minimum acceptable mailing address
     user_requests = db.relationship("UserRequests", backref="user")
+
+    agency = db.relationship('Agencies', backref='users')
 
     @property
     def is_authenticated(self):
@@ -244,7 +274,7 @@ class Users(UserMixin, db.Model):
     @property
     def is_anonymous_requester(self):
         """
-        Checks to see if the current user is an anonymous requester
+        Checks to see if the user is an anonymous requester
 
         NOTE: This is not the same as an anonymous user! This returns
         true if this user has been created for a specific request.
@@ -253,12 +283,24 @@ class Users(UserMixin, db.Model):
         """
         return self.auth_user_type == user_type_auth.ANONYMOUS_USER
 
-    def get_id(self):
+    def get_id(self):  # FIXME: should not be getter
         return USER_ID_DELIMITER.join((self.guid, self.auth_user_type))
+
+    def from_id(self, user_id):  # Might come in useful
+        guid, auth_user_type = user_id.split(USER_ID_DELIMITER)
+        return self.query.filter_by(guid=guid, auth_user_type=auth_user_type).one()
 
     @property
     def name(self):
         return ' '.join((self.first_name, self.last_name))
+
+    def es_update(self):
+        """
+        Call es_update for any request where this user is the requester
+        since the request es doc relies on the requester's name.
+        """
+        for request in self.requests:
+            request.es_update()
 
     def __init__(self, **kwargs):
         super(Users, self).__init__(**kwargs)
@@ -323,7 +365,8 @@ class Requests(db.Model):
     """
     __tablename__ = 'requests'
     id = db.Column(db.String(19), primary_key=True)
-    agency_ein = db.Column(db.Integer, db.ForeignKey('agencies.ein'))
+    agency_ein = db.Column(db.String(4), db.ForeignKey('agencies.ein'))
+    category = db.Column(db.String, default='All', nullable=False)
     title = db.Column(db.String(90))
     description = db.Column(db.String(5000))
     date_created = db.Column(db.DateTime, default=datetime.utcnow())
@@ -362,6 +405,7 @@ class Requests(db.Model):
                       "Users.auth_user_type == UserRequests.auth_user_type,"
                       "UserRequests.request_user_type == '{}')".format(
                           user_type_request.REQUESTER),
+        backref="requests",
         viewonly=True,
         uselist=False
     )
@@ -386,27 +430,24 @@ class Requests(db.Model):
             description,
             agency_ein,
             date_created,
+            category=None,
             privacy=None,
             date_submitted=None,  # FIXME: are some of these really nullable?
             due_date=None,
             submission=None,
-            status=request_status.OPEN,
-            agency_description=None
+            status=request_status.OPEN
     ):
         self.id = id_
         self.title = title
         self.description = description
         self.agency_ein = agency_ein
         self.date_created = date_created
+        self.category = category
         self.privacy = privacy or self.PRIVACY_DEFAULT
         self.date_submitted = date_submitted
         self.due_date = due_date
         self.submission = submission
         self.status = status
-        self.agency_description = agency_description
-
-    def get_formatted_due_date(self):
-        return self.due_date.strftime('%m/%d/%Y')
 
     @property
     def val_for_events(self):
@@ -431,7 +472,7 @@ class Requests(db.Model):
 
     def es_update(self):
         es.update(
-            index=INDEX,
+            index=current_app.config["ELASTICSEARCH_INDEX"],
             doc_type='request',
             id=self.id,
             body={
@@ -441,9 +482,10 @@ class Requests(db.Model):
                     'agency_description': self.agency_description,
                     'title_private': self.privacy['title'],
                     'agency_description_private': self.privacy['agency_description'],
-                    'date_due': self.due_date,
-                    'submission': self.submission,
+                    'date_due': self.due_date.strftime(ES_DATETIME_FORMAT),
+                    'submission': self.submission,  # TODO: does this ever change?
                     'status': self.status,
+                    'requester_name': self.requester.name,
                     'public_title': 'Private' if self.privacy['title'] else self.title
                 }
             },
@@ -453,22 +495,26 @@ class Requests(db.Model):
     def es_create(self):
         """ Must be called AFTER UserRequest has been created. """
         es.create(
-            index=INDEX,
+            index=current_app.config["ELASTICSEARCH_INDEX"],
             doc_type='request',
             id=self.id,
             body={
                 'title': self.title,
                 'description': self.description,
                 'agency_description': self.agency_description,
+                'agency_ein': self.agency_ein,
+                'agency_name': self.agency.name,
                 'title_private': self.privacy['title'],
                 'agency_description_private': self.privacy['agency_description'],
-                'date_submitted': self.date_submitted,
-                'date_due': self.due_date,
+                'date_created': self.date_created.strftime(ES_DATETIME_FORMAT),
+                'date_submitted': self.date_submitted.strftime(ES_DATETIME_FORMAT),
+                'date_due': self.due_date.strftime(ES_DATETIME_FORMAT),
                 'submission': self.submission,
                 'status': self.status,
                 'requester_id': (self.requester.get_id()
                                  if not self.requester.is_anonymous_requester
                                  else ''),
+                'requester_name': self.requester.name,
                 'public_title': 'Private' if self.privacy['title'] else self.title,
             }
         )
@@ -504,8 +550,7 @@ class Events(db.Model):
                 user_type_auth.PUBLIC_USER_GOOGLE,
                 user_type_auth.PUBLIC_USER_NYC_ID,
                 user_type_auth.ANONYMOUS_USER,
-                name='auth_user_type'),
-        primary_key=True)
+                name='auth_user_type'))
     response_id = db.Column(db.Integer, db.ForeignKey('responses.id'))
     type = db.Column(db.String(30))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow())
@@ -518,6 +563,24 @@ class Events(db.Model):
             [Users.guid, Users.auth_user_type]
         ),
     )
+
+    def __init__(self,
+                 request_id,
+                 user_id,
+                 auth_user_type,
+                 type_,
+                 previous_value=None,
+                 new_value=None,
+                 response_id=None,
+                 timestamp=None):
+        self.request_id = request_id
+        self.user_id = user_id
+        self.auth_user_type = auth_user_type
+        self.response_id = response_id
+        self.type = type_
+        self.previous_value = previous_value
+        self.new_value = new_value
+        self.timestamp = timestamp
 
     def __repr__(self):
         return '<Events %r>' % self.id
@@ -611,7 +674,7 @@ class Reasons(db.Model):
         determination_type.DENIAL,
         name="reason_type"
     ), nullable=False)
-    agency_ein = db.Column(db.Integer, db.ForeignKey('agencies.ein'))
+    agency_ein = db.Column(db.String(4), db.ForeignKey('agencies.ein'))
     content = db.Column(db.String, nullable=False)
 
     @classmethod
@@ -726,7 +789,7 @@ class Notes(Responses):
                  request_id,
                  privacy,
                  content,
-                 date_modified=datetime.utcnow()):
+                 date_modified=None):
         super(Notes, self).__init__(request_id,
                                     privacy,
                                     date_modified)
@@ -765,7 +828,7 @@ class Files(Responses):
                  mime_type,
                  size,
                  hash_,
-                 date_modified=datetime.utcnow()):
+                 date_modified=None):
         super(Files, self).__init__(request_id,
                                     privacy,
                                     date_modified)
@@ -799,7 +862,7 @@ class Links(Responses):
                  privacy,
                  title,
                  url,
-                 date_modified=datetime.utcnow()):
+                 date_modified=None):
         super(Links, self).__init__(request_id,
                                     privacy,
                                     date_modified)
@@ -827,7 +890,7 @@ class Instructions(Responses):
                  request_id,
                  privacy,
                  content,
-                 date_modified=datetime.utcnow()):
+                 date_modified=None):
         super(Instructions, self).__init__(request_id,
                                            privacy,
                                            date_modified)
@@ -853,6 +916,7 @@ class Determinations(Responses):
     acknowledgment | estimated date of completion     | why the date was chosen / additional info
     extension      | new estimated date of completion | why the request extended
     closing        | NA                               | why the request closed
+    reopening      | new estimated date of completion | NA
 
     """
     __tablename__ = response_type.DETERMINATION
@@ -863,9 +927,10 @@ class Determinations(Responses):
         determination_type.ACKNOWLEDGMENT,
         determination_type.EXTENSION,
         determination_type.CLOSING,
+        determination_type.REOPENING,
         name="determination_type"
     ), nullable=False)
-    reason = db.Column(db.String)  # nullable only for acknowledge
+    reason = db.Column(db.String)  # nullable only for acknowledge and re-opening
     date = db.Column(db.DateTime)  # nullable only for denial, closing
 
     def __init__(self,
@@ -874,13 +939,14 @@ class Determinations(Responses):
                  dtype,
                  reason,
                  date=None,
-                 date_modified=datetime.utcnow()):
+                 date_modified=None):
         super(Determinations, self).__init__(request_id,
                                              privacy,
                                              date_modified)
         self.dtype = dtype
 
-        if dtype != determination_type.ACKNOWLEDGMENT:
+        if dtype not in (determination_type.ACKNOWLEDGMENT,
+                         determination_type.REOPENING):
             assert reason is not None
         self.reason = reason
 
@@ -899,7 +965,8 @@ class Determinations(Responses):
             'reason': self.reason
         }
         if self.dtype in (determination_type.ACKNOWLEDGMENT,
-                          determination_type.EXTENSION):
+                          determination_type.EXTENSION,
+                          determination_type.REOPENING):
             val['date'] = self.date.isoformat()
         return val
 
@@ -932,7 +999,7 @@ class Emails(Responses):
                  bcc,
                  subject,
                  body,
-                 date_modified=datetime.utcnow()):
+                 date_modified=None):
         super(Emails, self).__init__(request_id,
                                      privacy,
                                      date_modified)

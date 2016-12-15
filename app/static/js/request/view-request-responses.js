@@ -1,10 +1,10 @@
-
 $(function () {
     var responses = null;
     var index = 0;
     var indexIncrement = 10;
 
     var requestId = $("#request-id").text();
+    var request_id = $.trim($('#request-id').text());
 
     // get first set of responses on page load
     $.ajax({
@@ -12,8 +12,8 @@ $(function () {
         url: "/request/api/v1.0/responses",
         data: {
             start: 0,
-            requestId: requestId,
-            withTemplate: true
+            request_id: requestId,
+            with_template: true
         },
         success: function (data) {
             responses = data.responses;
@@ -44,6 +44,7 @@ $(function () {
                         "#fileupload-update-" + responses[i].id,
                         requestId,
                         true,
+                        responses[i].id,
                         "template-upload-update",
                         "template-download-update",
                         $("#response-modal-" + responses[i].id).find(
@@ -51,6 +52,7 @@ $(function () {
                     );
                 }
             }
+            flask_moment_render_all();
         }
         else {
             responseList.text("None");
@@ -108,37 +110,39 @@ $(function () {
         var second = responseModal.find(".second");
         var third = responseModal.find(".third");
 
-    var next1 = first.find(".response-modal-next");
-    var next2 = second.find(".response-modal-next");
-    var prev2 = second.find(".response-modal-prev");
-    var prev3 = third.find(".response-modal-prev");
+        var next1 = first.find(".response-modal-next");
+        var next2 = second.find(".response-modal-next");
+        var prev2 = second.find(".response-modal-prev");
+        var prev3 = third.find(".response-modal-prev");
+
+        var submitBtn = third.find(".response-modal-submit");
 
         // Initialize tinymce HTML editor
         tinymce.init({
             menubar: false,
             // sets tinymce to enable only on specific textareas classes
             mode: "specific_textareas",
-            // selector for tinymce textarea classes is set to "tinymce-area"
-            editorSelector: "tinymce-area",
+            // selector for tinymce textarea classes is set to 'tinymce-area'
+            editor_selector: "tinymce-area",
             elementpath: false,
             convert_urls: false,
             height: 180
         });
 
-        switch (responseType) {
+        switch (response_type) {
             case "files":  // TODO: constants?
                 next1.click(function (e) {
                     // Validate fileupload form
                     first.find(".fileupload-form").parsley().validate();
 
-                // Do not proceed if file upload has not been completed
-                if (first.find(".template-download").length === 0 &&
-                    first.find(".template-upload").length !== 0) {
-                    first.find(".fileupload-error-messages").text(
-                        "The file upload has not been completed").show();
-                    e.preventDefault();
-                    return false;
-                }
+                    // Do not proceed if file upload has not been completed
+                    if (first.find(".template-download").length === 0 &&
+                        first.find(".template-upload").length !== 0) {
+                        first.find(".fileupload-error-messages").text(
+                            "The file upload has not been completed").show();
+                        e.preventDefault();
+                        return false;
+                    }
 
                     // Do not proceed if files with error are not removed
                     if (first.find(".upload-error").length > 0 ||
@@ -149,25 +153,33 @@ $(function () {
                         return false;
                     }
 
-                if (first.find(".fileupload-form").parsley().isValid()) {
-                    first.hide();
-                    second.show();
-
-                    $.ajax({
-                        url: "/response/email",
-                        type: "POST",
-                        data: {
-                            request_id: requestId,
-                            template_name: "email_response_file.html",
-                            type: "files"
-                        },
-                        success: function (data) {
-                            // Data should be html template page.
-                            tinyMCE.get("email-content-" + responseId).setContent(data.template);
-                        }
-                    });
-                }
-            });
+                    if (first.find(".fileupload-form").parsley().isValid()) {
+                        $.ajax({
+                            url: "/response/email",
+                            type: "POST",
+                            data: {
+                                request_id: request_id,
+                                template_name: "email_edit_file.html",
+                                type: "edit",
+                                response_id: response_id,
+                                title: first.find("input[name=title]").val(),
+                                privacy: first.find("input[name=privacy]:checked").val(),
+                                filename: first.find(".secured-name").length > 0 ? first.find(".secured-name").text() : null
+                            },
+                            success: function (data) {
+                                if (data.error) {
+                                    first.find(".fileupload-error-messages").text(data.error).show();
+                                }
+                                else {
+                                    first.hide();
+                                    second.show();
+                                    first.find(".fileupload-error-messages").text(data.error).hide();
+                                    tinyMCE.get("email-content-" + response_id).setContent(data.template);
+                                }
+                            }
+                        });
+                    }
+                });
 
             next2.click(function () {
                 second.hide();
@@ -175,34 +187,33 @@ $(function () {
 
                 tinyMCE.triggerSave();
 
-                var filename = first.find(".secured-name").text();
-                if (filename === "") {
-                    filename = first.find(".uploaded-filename").text();
-                }
-                var privacy = first.find("input[name=privacy]:checked").val();
-
-                var files = [{
-                    "filename": filename,
-                    "privacy": privacy
-                }];
-
-                $.ajax({
-                    url: "/response/email",
-                    type: "POST",
-                    data: {
-                        request_id: requestId,
-                        template_name: "email_response_file.html",
-                        type: "files",
-                        files: JSON.stringify(files),
-                        email_content: $("#email-content-" + responseId).val()
-                    },
-                    success: function (data) {
-                        // Data should be html template page.
-                        third.find(".email-summary").html(data.template);
-                        // TODO: data should also return email confirmation header
+                    var filename = first.find(".secured-name").text();
+                    if (filename === "") {
+                        filename = first.find(".uploaded-filename").text();
                     }
+                    var privacy = first.find("input[name=privacy]:checked").val();
+
+                    $.ajax({
+                        url: "/response/email",
+                        type: "POST",
+                        data: {
+                            request_id: request_id,
+                            template_name: "email_edit_file.html",
+                            type: "edit",
+                            response_id: response_id,
+                            title: first.find("input[name=title]").val(),
+                            privacy: first.find("input[name=privacy]:checked").val(),
+                            filename: first.find(".secured-name").length > 0 ? first.find(".secured-name").text() :
+                                null,
+                            confirmation: true,
+                            email_content: $("#email-content-" + response_id).val()
+                        },
+                        success: function (data) {
+                            third.find(".confirmation-header").text(data.header);
+                            third.find(".email-summary").html(data.template);
+                        }
+                    });
                 });
-            });
 
                 prev2.click(function () {
                     first.find(".fileupload-error-messages").hide();
@@ -210,18 +221,21 @@ $(function () {
                     first.show();
                 });
 
-            prev3.click(function () {
-                third.hide();
-                second.show();
-            });
+                prev3.click(function () {
+                    third.hide();
+                    second.show();
+                });
 
                 // SUBMIT!
-                third.find(".response-modal-submit").click(function() {
-                    var form = first.find("form");
+                submitBtn.click(function () {
+                    $(this).attr("disabled", true);
+                    var form = first.find("form").serializeArray();
+                    var email_content = second.find("#email-content-" + response_id).val();
+                    form.push({ name: "email_content", value: email_content });
                     $.ajax({
-                        url: "/response/" + responseId,
+                        url: "/response/" + response_id,
                         type: "PATCH",
-                        data: form.serializeArray(), // TODO: remove hidden email summaries
+                        data: form,
                         success: function () {
                             location.reload();
                         }
@@ -590,15 +604,15 @@ function setDeleteResponseWorkflow(responseId) {
         e.preventDefault();
     });
 
-    var deleteConfirmString = sprintf("%s:%s", request_id, responseId);
-    deleteConfirmCheck.on("input", function () {
-        if ($(this).val() === deleteConfirmString) {
-            deleteConfirm.attr("disabled", false);
-        }
-        else {
-            deleteConfirm.attr("disabled", true);
-        }
-    });
+        var deleteConfirmString = "DELETE";
+        deleteConfirmCheck.on("input", function() {
+            if ($(this).val().toUpperCase() === deleteConfirmString) {
+                deleteConfirm.attr("disabled", false);
+            }
+            else {
+                deleteConfirm.attr("disabled", true);
+            }
+        });
 
     responseModal.find(".delete-select").click(function () {
         defaultSection.hide();
@@ -631,3 +645,4 @@ function setDeleteResponseWorkflow(responseId) {
         });
     }
 
+});

@@ -4,6 +4,9 @@
    :synopsis: Handles the response URL endpoints for the OpenRecords application
 """
 import os
+
+import app.lib.file_utils as fu
+
 from datetime import datetime
 
 from flask import (
@@ -13,11 +16,12 @@ from flask import (
     redirect,
     jsonify,
     current_app,
-    send_from_directory,
+    after_this_request,
 )
 from flask_login import current_user
 
 from app.constants.response_type import FILE
+from app.constants.response_privacy import PRIVATE
 from app.lib.date_utils import get_holidays_date_list
 from app.lib.db_utils import delete_object
 from app.response import response
@@ -38,6 +42,8 @@ from app.response.utils import (
     add_extension,
     add_acknowledgment,
     add_denial,
+    add_closing,
+    add_reopening,
     add_instruction,
     get_file_links,
     process_upload_data,
@@ -131,6 +137,7 @@ def response_acknowledgment(request_id):
                        flask_request.form['info'].strip() or None,
                        flask_request.form['days'],
                        flask_request.form['date'],
+                       flask_request.form['tz-name'],
                        flask_request.form['email-summary'])
     return redirect(url_for('request.view', request_id=request_id))
 
@@ -148,6 +155,60 @@ def response_denial(request_id):
     add_denial(request_id,
                flask_request.form.getlist('reasons'),
                flask_request.form['email-summary'])
+    return redirect(url_for('request.view', request_id=request_id))
+
+
+@response.route('/closing/<request_id>', methods=['POST'])
+def response_closing(request_id):
+    """
+    Endpoint for closing a request that takes in form data from the front end.
+    Required form data include:
+        -reasons: a list of closing reasons
+        -email-summary: string email body from the confirmation page
+
+    :param request_id: FOIL request ID
+
+    :return: redirect to view request page
+    """
+    required_fields = ['reasons', 'email-summary']
+
+    for field in required_fields:
+        if flask_request.form.get(field) is None:
+            flash('Uh Oh, it looks like the closing {} is missing! '
+                  'This is probably NOT your fault.'.format(field), category='danger')
+            return redirect(url_for('request.view', request_id=request_id))
+
+        add_closing(request_id,
+                    flask_request.form.getlist('reasons'),
+                    flask_request.form['email-summary'])
+        return redirect(url_for('request.view', request_id=request_id))
+
+
+@response.route('/reopening/<request_id>', methods=['POST'])
+def response_reopening(request_id):
+    """
+    Endpoint for reopening a request that takes in form data from the frontend.
+    Required form data include:
+        -date: string of new date of request completion
+        -tz-name: name of the timezone the user is accessing the application in
+        -email-summary: string email body from the confirmation page
+
+    :param request_id: FOIL request ID
+
+    :return: redirect to view request page
+    """
+    required_fields = ['date', 'tz-name', 'email-summary']
+
+    for field in required_fields:
+        if not flask_request.form.get(field, ''):
+            flash('Uh Oh, it looks like the acknowledgement {} is missing! '
+                  'This is probably NOT your fault.'.format(field), category='danger')
+            return redirect(url_for('request.view', request_id=request_id))
+
+    add_reopening(request_id,
+                  flask_request.form['date'],
+                  flask_request.form['tz-name'],
+                  flask_request.form['email-summary'])
     return redirect(url_for('request.view', request_id=request_id))
 
 
@@ -182,6 +243,7 @@ def response_extension(request_id):
                   extension_data['length'],
                   extension_data['reason'],
                   extension_data['due-date'],
+                  extension_data['tz-name'],
                   extension_data['email-extension-summary'])
     return redirect(url_for('request.view', request_id=request_id))
 
@@ -340,7 +402,7 @@ def patch(response_id):
     Ex (for delete):
     {
         'deleted': true,
-        'confirmation': string checked against '<request_id>:<response_id>'
+        'confirmation': string checked against 'DELETE'
             if the strings do not match, the 'deleted' field will not be updated
     }
 
@@ -404,39 +466,57 @@ def get_response_content(response_id):
              redirect to login if user not authenticated and no token provided or
              400 error if response/file not found
     """
-    response = Responses.query.filter_by(id=response_id, deleted=False).one()
-    if response is not None and response.type == FILE:
+    response_ = Responses.query.filter_by(id=response_id, deleted=False).one()
+    if response_ is not None and response_.type == FILE:
         upload_path = os.path.join(
             current_app.config["UPLOAD_DIRECTORY"],
-            response.request_id
+            response_.request_id
         )
         filepath_parts = (
             upload_path,
-            response.name
+            response_.name
         )
         filepath = os.path.join(*filepath_parts)
+        serving_path = os.path.join(
+            current_app.config['UPLOAD_SERVING_DIRECTORY'],
+            response_.request_id,
+            response_.name
+        )
         token = flask_request.args.get('token')
         if token is not None:
             resptok = ResponseTokens.query.filter_by(
                 token=token, response_id=response_id).first()
             if resptok is not None:
                 if (datetime.utcnow() < resptok.expiration_date
-                   and os.path.exists(filepath)):
-                    return send_from_directory(*filepath_parts, as_attachment=True)
+                   and fu.exists(filepath)
+                   and response_.privacy != PRIVATE):
+                    @after_this_request
+                    def remove(resp):
+                        os.remove(serving_path)
+                        return resp
+                    return fu.send_file(*filepath_parts, as_attachment=True)
                 else:
                     delete_object(resptok)
         else:
             if current_user.is_authenticated:
-                if ((current_user.is_public or current_user.is_agency)
+                if (fu.exists(filepath)
+                   and (
+                        (current_user.is_public and response_.privacy != PRIVATE)
+                        or current_user.is_agency
+                   )
                    and UserRequests.query.filter_by(
-                        request_id=response.request_id,
+                        request_id=response_.request_id,
                         user_guid=current_user.guid,
-                        auth_user_type=current_user.auth_user_type).first() is not None
-                   and os.path.exists(filepath)):
-                    return send_from_directory(*filepath_parts, as_attachment=True)
+                        auth_user_type=current_user.auth_user_type
+                   ).first() is not None):
+                    @after_this_request
+                    def remove(resp):
+                        os.remove(serving_path)
+                        return resp
+                    return fu.send_file(*filepath_parts, as_attachment=True)
             else:
                 return redirect(url_for(
                     'auth.index',
                     sso2=True,
                     return_to=flask_request.base_url))
-    return '', 400  # TODO: error pages
+    return 'Not found.', 404  # TODO: other pages (whoops, page expired...)

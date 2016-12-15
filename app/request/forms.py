@@ -1,7 +1,7 @@
 """
 .. module:: request.forms.
 
-    :synopsis: Defines forms used to create Procurement requests.
+    :synopsis: Defines forms used to create FOIL requests.
 """
 
 from datetime import datetime
@@ -24,6 +24,7 @@ from app.constants import (
     submission_methods,
     determination_type,
 )
+from app.lib.db_utils import get_agency_choices
 from app.models import Reasons
 
 
@@ -50,6 +51,11 @@ class PublicUserRequestForm(Form):
 
     # Submit Button
     submit = SubmitField('Submit Request')
+
+    def __init__(self):
+        super(PublicUserRequestForm, self).__init__()
+        self.request_agency.choices = get_agency_choices()
+        self.request_agency.choices.insert(0, ('', ''))
 
 
 class AgencyUserRequestForm(Form):
@@ -155,6 +161,11 @@ class AnonymousRequestForm(Form):
 
     submit = SubmitField('Submit Request')
 
+    def __init__(self):
+        super(AnonymousRequestForm, self).__init__()
+        self.request_agency.choices = get_agency_choices()
+        self.request_agency.choices.insert(0, ('', ''))
+
 
 class EditRequesterForm(Form):
     email = StringField('Email')
@@ -186,17 +197,47 @@ class EditRequesterForm(Form):
             self.zipcode.data = requester.mailing_address.get("zip") or ""
 
 
-class DenyRequestForm(Form):
-    reasons = SelectMultipleField('Reasons for Denial (Choose 1 or more)')
+class FinishRequestForm(Form):
 
     def __init__(self, agency_ein):
-        super(DenyRequestForm, self).__init__()
+        super(FinishRequestForm, self).__init__()
         self.reasons.choices = [
             (reason.id, reason.content)
             for reason in Reasons.query.filter(
-                Reasons.type == determination_type.DENIAL,
+                Reasons.type == self.ultimate_determination_type,
                 or_(
                     Reasons.agency_ein == agency_ein,
                     Reasons.agency_ein == None
                 )
             )]
+
+    @property
+    def reasons(self):
+        """ SelectMultipleField """
+        raise NotImplementedError
+
+    @property
+    def ultimate_determination_type(self):
+        """ Closing or Denial """
+        raise NotImplementedError
+
+
+class DenyRequestForm(FinishRequestForm):
+    reasons = SelectMultipleField('Reasons for Denial (Choose 1 or more)')
+    ultimate_determination_type = determination_type.DENIAL
+
+
+class CloseRequestForm(FinishRequestForm):
+    reasons = SelectMultipleField('Reasons for Closing (Choose 1 or more)')
+    ultimate_determination_type = determination_type.CLOSING
+
+
+class SearchRequestsForm(Form):
+    agency_ein = SelectField('Agency')  #, choices=get_agency_choices())
+    # category = SelectField('Category', get_categories())
+
+    def __init__(self):
+        super(SearchRequestsForm, self).__init__()
+        self.agency_ein.choices = get_agency_choices()
+        self.agency_ein.choices.insert(0, ('', 'All'))
+        # Why choices must be set in constructor I do not know... some db issue
