@@ -51,14 +51,14 @@ function bindFileUpload(target,
         chunkfail: function (e, data) {
             // remove existing partial upload
             deleteUpload(request_id, encodeName(data.files[0].name), false, true);
-            // Re-enable 'next' button
+            // Re-enable "next" button
             if (for_update) {
-                $(nextButton).attr('disabled', false);
+                $(nextButton).attr("disabled", false);
             }
         }
     }).bind("fileuploaddone", function (e, data) {
         // blueimp says that this will only be called on a successful upload
-        // so I'm not sure why I have to check for errors here!
+        // so I"m not sure why I have to check for errors here!
         var file = data.result.files[0];
         if (file.errors === undefined) {
             // start polling status endpoint after scanner startup

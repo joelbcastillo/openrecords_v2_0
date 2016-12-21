@@ -65,7 +65,7 @@ $(document).ready(function () {
     $("#request-file").attr("data-parsley-max-file-size","20");
 
     // Specify container for file input parsley error message
-    $('#request-file').attr("data-parsley-errors-container", ".file-error");
+    $("#request-file").attr("data-parsley-errors-container", ".file-error");
 
     // Set name of the file to the text of filename div if file exists
     $("#request-file").change(function () {
@@ -110,11 +110,11 @@ $(document).ready(function () {
     });
 
     // Character count for creating a new request
-    $('#request-title').keyup(function () {
+    $("#request-title").keyup(function () {
         characterCounter("#title-character-count", 90, $(this).val().length)
     });
 
-    $('#request-description').keyup(function () {
+    $("#request-description").keyup(function () {
         characterCounter("#description-character-count", 5000, $(this).val().length)
     });
 

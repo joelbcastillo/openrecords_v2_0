@@ -1,4 +1,4 @@
-// Don't cache ajax requests
+// Don"t cache ajax requests
 $.ajaxSetup({ cache: false });
 
 $(function () {
@@ -67,7 +67,7 @@ function notHolidayOrWeekend(date, forPicker) {
     if (typeof(forPicker) === "undefined") {
         forPicker = true;
     }
-    var formattedDate = $.datepicker.formatDate('yy-mm-dd', date);
+    var formattedDate = $.datepicker.formatDate("yy-mm-dd", date);
     var holiday_or_weekend = $.inArray(formattedDate, holiday_dates) !== -1 ||
             date.getDay() === 0 || date.getDay() === 6;
     // TODO: would be nice to display the name of the holiday (tooltip)
