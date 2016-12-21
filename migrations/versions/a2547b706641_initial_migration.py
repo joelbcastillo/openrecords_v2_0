@@ -1,13 +1,13 @@
 """Initial Migration
 
-Revision ID: 507446fcc028
+Revision ID: a2547b706641
 Revises: None
-Create Date: 2016-12-13 19:07:19.105127
+Create Date: 2016-12-18 18:07:38.262173
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '507446fcc028'
+revision = 'a2547b706641'
 down_revision = None
 
 from alembic import op
@@ -31,7 +31,7 @@ def upgrade():
     op.create_table('roles',
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('name', sa.String(length=64), nullable=True),
-                    sa.Column('permissions', sa.Integer(), nullable=True),
+                    sa.Column('permissions', sa.BigInteger(), nullable=True),
                     sa.PrimaryKeyConstraint('id'),
                     sa.UniqueConstraint('name')
                     )
@@ -39,6 +39,7 @@ def upgrade():
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('type', sa.Enum('closing', 'denial', name='reason_type'), nullable=False),
                     sa.Column('agency_ein', sa.String(length=4), nullable=True),
+                    sa.Column('title', sa.String(), nullable=False),
                     sa.Column('content', sa.String(), nullable=False),
                     sa.ForeignKeyConstraint(['agency_ein'], ['agencies.ein'], ),
                     sa.PrimaryKeyConstraint('id')
@@ -68,6 +69,7 @@ def upgrade():
                               sa.Enum('Saml2In:NYC Employees', 'FacebookSSO', 'MSLiveSSO', 'YahooSSO', 'LinkedInSSO',
                                       'GoogleSSO', 'EDIRSSO', 'AnonymousUser', name='auth_user_type'), nullable=False),
                     sa.Column('agency_ein', sa.String(length=4), nullable=True),
+                    sa.Column('is_super', sa.Boolean(), nullable=False),
                     sa.Column('is_agency_admin', sa.Boolean(), nullable=False),
                     sa.Column('is_agency_active', sa.Boolean(), nullable=False),
                     sa.Column('first_name', sa.String(length=32), nullable=False),
@@ -75,7 +77,7 @@ def upgrade():
                     sa.Column('last_name', sa.String(length=64), nullable=False),
                     sa.Column('email', sa.String(length=254), nullable=True),
                     sa.Column('email_validated', sa.Boolean(), nullable=False),
-                    sa.Column('terms_of_use_accepted', sa.String(length=16), nullable=True),
+                    sa.Column('terms_of_use_accepted', sa.Boolean(), nullable=True),
                     sa.Column('title', sa.String(length=64), nullable=True),
                     sa.Column('organization', sa.String(length=128), nullable=True),
                     sa.Column('phone_number', sa.String(length=15), nullable=True),
@@ -105,7 +107,7 @@ def upgrade():
                     sa.Column('request_id', sa.String(length=19), nullable=False),
                     sa.Column('request_user_type', sa.Enum('requester', 'agency', name='request_user_type'),
                               nullable=True),
-                    sa.Column('permissions', sa.Integer(), nullable=True),
+                    sa.Column('permissions', sa.BigInteger(), nullable=True),
                     sa.ForeignKeyConstraint(['request_id'], ['requests.id'], ),
                     sa.ForeignKeyConstraint(['user_guid', 'auth_user_type'], ['users.guid', 'users.auth_user_type'], ),
                     sa.PrimaryKeyConstraint('user_guid', 'auth_user_type', 'request_id')
@@ -132,7 +134,7 @@ def upgrade():
     op.create_table('events',
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('request_id', sa.String(length=19), nullable=True),
-                    sa.Column('user_id', sa.String(length=64), nullable=True),
+                    sa.Column('user_guid', sa.String(length=64), nullable=True),
                     sa.Column('auth_user_type',
                               sa.Enum('Saml2In:NYC Employees', 'FacebookSSO', 'MSLiveSSO', 'YahooSSO', 'LinkedInSSO',
                                       'GoogleSSO', 'EDIRSSO', 'AnonymousUser', name='auth_user_type'), nullable=True),
@@ -143,7 +145,7 @@ def upgrade():
                     sa.Column('new_value', postgresql.JSON(astext_type=sa.Text()), nullable=True),
                     sa.ForeignKeyConstraint(['request_id'], ['requests.id'], ),
                     sa.ForeignKeyConstraint(['response_id'], ['responses.id'], ),
-                    sa.ForeignKeyConstraint(['user_id', 'auth_user_type'], ['users.guid', 'users.auth_user_type'], ),
+                    sa.ForeignKeyConstraint(['user_guid', 'auth_user_type'], ['users.guid', 'users.auth_user_type'], ),
                     sa.PrimaryKeyConstraint('id')
                     )
     op.create_table('files',

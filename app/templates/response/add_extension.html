@@ -30,14 +30,15 @@
             </div>
             <!-- second div of the add-extension form containing email content -->
             <div class="extension-divs hide-div form-group" id="extension-second">
+                <h4>Edit Email Body</h4>
+                <div class="email-extension-content-hidden" hidden></div>
                 <textarea class="tinymce-area" name="email-extension-content"></textarea>
                 <button type="button" class="prev-btn btn btn-default" id="extension-prev-1">Prev</button>
                 <button type="button" class="next-btn btn btn-primary" id="extension-next-2">Next</button>
             </div>
             <!-- last div of the add-extension form containing confirmation and submit -->
             <div class="extension-divs hide-div form-group" id="extension-third">
-                <h4>The following will be Submitted to the request:</h4>
-                <h5>Email:</h5>
+                <h4 class="extension-confirmation-header"></h4>
                 <div class="wrap-text" id="email-extension-summary"></div>
                 <input type="hidden" name="email-extension-summary" id="email-extension-summary-hidden">
                 <input type="hidden" name="tz-name" id="email-extension-tz-name">

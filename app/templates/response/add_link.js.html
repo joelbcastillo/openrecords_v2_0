@@ -19,11 +19,14 @@ $(document).ready(function () {
                 data: {
                     request_id: "{{ request.id }}",
                     type: "links",
-                    privacy: $('.link-privacy:checked').val()
+                    link: JSON.stringify({
+                        url: $('#link-url').val(),
+                        privacy: $('.link-privacy:checked').val()
+                    })
                 },
                 success: function (data) {
-                    // Data should be html template page.
                     tinyMCE.get('email-link-content').setContent(data.template);
+                    $(".link-confirmation-header").text(data.header);
                 }
             });
             document.getElementById("link-first").style.display = "none";
@@ -40,10 +43,6 @@ $(document).ready(function () {
             data: {
                 request_id: "{{ request.id }}",
                 type: "links",
-                link: JSON.stringify({
-                    url: $('#link-url').val(),
-                    privacy: $('.link-privacy:checked').val()
-                }),
                 email_content: $('#email-link-content').val()
             },
             success: function (data) {
@@ -68,10 +67,9 @@ $(document).ready(function () {
         document.getElementById("link-second").style.display = "block";
     });
 
-    // Disable button on submit click and submit form
-    $("#link-submit").click(function () {
-        $(this).attr("disabled", true);
-        $("#add-link-form").submit();
+    // Disable button on submit
+    $("#add-link-form").submit(function () {
+        $("#link-submit").attr("disabled", true);
     });
 
     // Apply parsley data required validation to link title and url

@@ -22,11 +22,14 @@ $(document).ready(function () {
                 data: {
                     request_id: "{{ request.id }}",
                     type: "notes",
-                    privacy: $(".note-privacy:checked").val()
+                    note: JSON.stringify({
+                        content: $('#note-content').val(),
+                        privacy: $(".note-privacy:checked").val()
+                    })
                 },
                 success: function (data) {
-                    // Data should be html template page.
                     tinyMCE.get('email-note-content').setContent(data.template);
+                    $(".note-confirmation-header").text(data.header);
                 }
             });
             document.getElementById("note-first").style.display = "none";
@@ -43,10 +46,6 @@ $(document).ready(function () {
             data: {
                 request_id: "{{ request.id }}",
                 type: "notes",
-                note: JSON.stringify({
-                    content: $('#note-content').val(),
-                    privacy: $(".note-privacy:checked").val()
-                }),
                 email_content: $('#email-note-content').val()
             },
             success: function (data) {
@@ -71,10 +70,9 @@ $(document).ready(function () {
         document.getElementById("note-second").style.display = "block";
     });
 
-    // Disable button on submit click and submit form
-    $("#note-submit").click(function () {
-        $(this).attr("disabled", true);
-        $("#add-note-form").submit();
+    // Disable button on submit
+    $("#add-note-form").submit(function () {
+        $("#note-submit").attr("disabled", true);
     });
 
     // Apply parsley data required validation to note title and url
