@@ -1,6 +1,4 @@
 import os
-import app.lib.file_utils as fu
-
 from datetime import datetime, timedelta
 
 from flask import current_app
