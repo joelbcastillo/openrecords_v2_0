@@ -9,31 +9,29 @@
 """
 import os
 import uuid
-
-import app.lib.file_utils as fu
-
 from datetime import datetime
+from tempfile import NamedTemporaryFile
 from urllib.parse import urljoin
 
 from flask import render_template, current_app, url_for, request as flask_request
 from flask_login import current_user
-from tempfile import NamedTemporaryFile
 from werkzeug.utils import secure_filename
 
+import app.lib.file_utils as fu
 from app import upload_redis
 from app.constants import (
     event_type,
     role_name as role,
     ACKNOWLEDGMENT_DAYS_DUE,
-    USER_ID_DELIMITER,
     user_type_request,
 )
-from app.constants.user_type_auth import ANONYMOUS_USER
 from app.constants.response_privacy import RELEASE_AND_PRIVATE
 from app.constants.submission_methods import DIRECT_INPUT
+from app.constants.user_type_auth import ANONYMOUS_USER
 from app.lib.date_utils import get_following_date, get_due_date
 from app.lib.db_utils import create_object, update_object
 from app.lib.user_information import create_mailing_address
+from app.lib.redis_utils import redis_set_file_metadata
 from app.models import (
     Requests,
     Agencies,
@@ -122,6 +120,9 @@ def create_request(title,
     )
     create_object(request)
 
+    guid_for_event = current_user.guid if not current_user.is_anonymous else None
+    auth_type_for_event = current_user.auth_user_type if not current_user.is_anonymous else None
+
     # 6. Get or Create User
     if current_user.is_public:
         user = current_user
@@ -141,6 +142,17 @@ def create_request(title,
             mailing_address=address
         )
         create_object(user)
+        # user created event
+        create_object(Events(
+            request_id,
+            guid_for_event,
+            auth_type_for_event,
+            event_type.USER_CREATED,
+            previous_value=None,
+            new_value=user.val_for_events,
+            response_id=None,
+            timestamp=datetime.utcnow()
+        ))
 
     if upload_path is not None:
         # 7. Move file to upload directory
@@ -153,11 +165,12 @@ def create_request(title,
                          filename,
                          fu.get_mime_type(upload_path),
                          fu.getsize(upload_path),
-                         fu.get_hash(upload_path))
+                         fu.get_hash(upload_path),
+                         is_editable=False)
         create_object(obj=response)
 
         # 8. Create upload Event
-        upload_event = Events(user_id=user.guid,
+        upload_event = Events(user_guid=user.guid,
                               auth_user_type=user.auth_user_type,
                               response_id=response.id,
                               request_id=request_id,
@@ -171,31 +184,30 @@ def create_request(title,
             create_object(ResponseTokens(response.id))
 
     role_to_user = {
-        role.PUBLIC_REQUESTER: current_user.is_public,
-        role.ANONYMOUS: current_user.is_anonymous,
-        role.AGENCY_OFFICER: current_user.is_agency
+        role.PUBLIC_REQUESTER: user.is_public,
+        role.ANONYMOUS: user.is_anonymous_requester,
     }
     role_name = [k for (k, v) in role_to_user.items() if v][0]
     # (key for "truthy" value)
 
     # 9. Create Event
     timestamp = datetime.utcnow()
-    event = Events(user_id=user.guid,
-                   auth_user_type=user.auth_user_type,
+    event = Events(user_guid=user.guid if current_user.is_anonymous else current_user.guid,
+                   auth_user_type=user.auth_user_type if current_user.is_anonymous else current_user.auth_user_type,
                    request_id=request_id,
                    type_=event_type.REQ_CREATED,
                    timestamp=timestamp,
                    new_value=request.val_for_events)
     create_object(event)
     if current_user.is_agency:
-        agency_event = Events(user_id=current_user.guid,
+        agency_event = Events(user_guid=current_user.guid,
                               auth_user_type=current_user.auth_user_type,
                               request_id=request.id,
                               type_=event_type.AGENCY_REQ_CREATED,
                               timestamp=timestamp)
         create_object(agency_event)
 
-    # 10. Create UserRequest
+    # 10. Create UserRequest for requester
     user_request = UserRequests(user_guid=user.guid,
                                 auth_user_type=user.auth_user_type,
                                 request_user_type=user_type_request.REQUESTER,
@@ -203,30 +215,46 @@ def create_request(title,
                                 permissions=Roles.query.filter_by(
                                     name=role_name).first().permissions)
     create_object(user_request)
+    create_object(Events(
+        request_id,
+        guid_for_event,
+        auth_type_for_event,
+        event_type.USER_ADDED,
+        previous_value=None,
+        new_value=user_request.val_for_events,
+        response_id=None,
+        timestamp=datetime.utcnow()
+    ))
 
-    # 11. Create the elasticsearch request doc
+    # 11. Create the elasticsearch request doc only if agency has been onboarded
+    agency = Agencies.query.filter_by(ein=agency).first()
+
     # (Now that we can associate the request with its requester.)
-    if current_app.config['ELASTICSEARCH_ENABLED']:
+    if current_app.config['ELASTICSEARCH_ENABLED'] and agency.is_active:
         request.es_create()
 
     # 12. Add all agency administrators to the request.
-
-    # a. Get all agency administrators objects
-    agency_administrators = Agencies.query.filter_by(ein=agency).first().administrators
-
-    if agency_administrators:
-        # Generate a list of tuples(guid, auth_user_type) identifying the agency administrators
-        agency_administrators = [tuple(agency_user.split(USER_ID_DELIMITER)) for agency_user in agency_administrators]
-
+    if agency.administrators:
         # b. Store all agency users objects in the UserRequests table as Agency users with Agency Administrator
         # privileges
-        for agency_administrator in agency_administrators:
-            user_request = UserRequests(user_id=agency_administrator[0],
-                                        auth_auth_user_type=agency_administrator[1],
+        for admin in agency.administrators:
+            user_request = UserRequests(user_guid=admin.guid,
+                                        auth_user_type=admin.auth_user_type,
                                         request_user_type=user_type_request.AGENCY,
                                         request_id=request_id,
-                                        permissions=Roles.query.filter_by(name=role.AGENCY_ADMIN).first().permissions)
+                                        permissions=Roles.query.filter_by(
+                                            name=role.AGENCY_ADMIN).first().permissions)
             create_object(user_request)
+            create_object(Events(
+                request_id,
+                guid_for_event,
+                auth_type_for_event,
+                event_type.USER_ADDED,
+                previous_value=None,
+                new_value=user_request.val_for_events,
+                response_id=None,
+                timestamp=datetime.utcnow()
+            ))
     return request_id
 
 
@@ -314,6 +342,8 @@ def _move_validated_upload(request_id, tmp_path):
         fu.mkdir(dst_dir)
     valid_name = os.path.basename(tmp_path).split('.', 1)[1]  # remove 'tmp' prefix
     valid_path = os.path.join(dst_dir, valid_name)
+    # store file metadata in redis
+    redis_set_file_metadata(request_id, tmp_path)
     fu.move(tmp_path, valid_path)
     upload_redis.set(
         get_upload_key(request_id, valid_name),
@@ -329,12 +359,15 @@ def generate_request_id(agency_ein):
     :return: generated FOIL Request ID (FOIL - year - agency ein - 5 digits for request number)
     """
     if agency_ein:
-        next_request_number = Agencies.query.filter_by(ein=agency_ein).first().next_request_number
+        agency = Agencies.query.filter_by(ein=agency_ein).one()  # This is the actual agency (including sub-agencies)
+        next_request_number = Agencies.query.filter_by(
+            parent_ein=agency.parent_ein).one().next_request_number  # Parent agencies handle the request counting, not sub-agencies
         update_object({'next_request_number': next_request_number + 1},
                       Agencies,
                       agency_ein)
-        request_id = "FOIL-{0:s}-{1:03d}-{2:05d}".format(
-            datetime.utcnow().strftime("%Y"), int(agency_ein), int(next_request_number))
+        agency_ein = agency.parent_ein
+        request_id = "FOIL-{0:s}-{1!s}-{2:05d}".format(
+            datetime.utcnow().strftime("%Y"), agency_ein, int(next_request_number))
         return request_id
     return None
 
@@ -367,7 +400,10 @@ def send_confirmation_email(request, agency, user):
     :param agency: Agencies object containing the agency of the new request
     :param user: Users object containing the user who created the request
     """
-    subject = 'New Request Created ({})'.format(request.id)
+    if agency.is_active:
+        subject = 'Request {} Submitted to {}'.format(request.id, agency.name)
+    else:
+        subject = 'FOIL Request Submitted to {}'.format(agency.name)
 
     # get the agency's default email and adds it to the bcc list
     bcc = [agency.default_email]
@@ -377,11 +413,23 @@ def send_confirmation_email(request, agency, user):
     address = user.mailing_address
 
     # generates the view request page URL for this request
-    page = urljoin(flask_request.host_url, url_for('request.view', request_id=request.id))
+    if agency.is_active:
+        page = urljoin(flask_request.host_url, url_for('request.view', request_id=request.id))
+        email_template = "email_templates/email_confirmation.html"
+        agency_default_email = None
+    else:
+        page = None
+        email_template = "email_templates/email_not_onboarded.html"
+        agency_default_email = agency.default_email
 
     # grabs the html of the email message so we can store the content in the Emails object
-    email_content = render_template("email_templates/email_confirmation.html", current_request=request,
-                                    agency_name=agency.name, user=user, address=address, page=page)
+    email_content = render_template(email_template,
+                                    current_request=request,
+                                    agency_name=agency.name,
+                                    agency_default_email=agency_default_email,
+                                    user=user,
+                                    address=address,
+                                    page=page)
 
     try:
         # if the requester supplied an email sent it to the request and bcc the agency

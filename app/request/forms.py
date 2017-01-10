@@ -1,7 +1,7 @@
 """
 .. module:: request.forms.
 
-    :synopsis: Defines forms used to create Procurement requests.
+    :synopsis: Defines forms used to create FOIL requests.
 """
 
 from datetime import datetime
@@ -82,7 +82,6 @@ class AgencyUserRequestForm(Form):
     """
 
     # Request Information
-    request_category = SelectField('Category (optional)', choices=CATEGORIES)
     request_title = StringField('Request Title (required)')
     request_description = TextAreaField('Request Description (required)')
     request_date = DateTimeField("Date (required)", format="%Y-%m-%d", default=datetime.today)
@@ -198,11 +197,10 @@ class EditRequesterForm(Form):
 
 
 class FinishRequestForm(Form):
-
     def __init__(self, agency_ein):
         super(FinishRequestForm, self).__init__()
         self.reasons.choices = [
-            (reason.id, reason.content)
+            (reason.id, reason.title)
             for reason in Reasons.query.filter(
                 Reasons.type == self.ultimate_determination_type,
                 or_(
@@ -233,7 +231,8 @@ class CloseRequestForm(FinishRequestForm):
 
 
 class SearchRequestsForm(Form):
-    agency_ein = SelectField('Agency')  #, choices=get_agency_choices())
+    agency_ein = SelectField('Agency')  # , choices=get_agency_choices())
+
     # category = SelectField('Category', get_categories())
 
     def __init__(self):

@@ -9,6 +9,7 @@ load_dotenv(dotenv_path)
 
 
 class Config:
+    NYC_GOV_BASE = 'www1.nyc.gov'
     WTF_CSRF_ENABLED = True
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard to guess string'
     LOGFILE_DIRECTORY = (os.environ.get('LOGFILE_DIRECTORY') or
@@ -18,6 +19,10 @@ class Config:
                    os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data', 'agencies.csv'))
     REASON_DATA = (os.environ.get('REASONS_DATA') or
                    os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data', 'reasons.csv'))
+    STAFF_DATA = (os.environ.get('STAFF_DATA') or
+                   os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data', 'staff.csv'))
+
+    DUE_SOON_DAYS_THRESHOLD = os.environ.get('DUE_SOON_DAYS_THRESHOLD') or 2
 
     # SFTP
     USE_SFTP = os.environ.get('USE_SFTP') == "True"
@@ -27,10 +32,19 @@ class Config:
     SFTP_RSA_KEY_FILE = os.environ.get('SFTP_RSA_KEY_FILE')
     SFTP_UPLOAD_DIRECTORY = os.environ.get('SFTP_UPLOAD_DIRECTORY')
 
-    # SAML Authentication Settings
+    # Authentication Settings
     SAML_PATH = (os.environ.get('SAML_PATH') or
                 os.path.join(os.path.abspath(os.path.dirname(__file__)), 'saml'))
     IDP = os.environ.get('IDP')
+    USE_SAML = os.environ.get('USE_SAML') == "True"
+    USE_LDAP = os.environ.get('USE_LDAP') == "True"
+    LDAP_SERVER = os.environ.get('LDAP_SERVER') or None
+    LDAP_PORT = os.environ.get('LDAP_PORT') or None
+    LDAP_USE_TLS = os.environ.get('LDAP_USE_TLS') == "True"
+    LDAP_KEY_PATH = os.environ.get('LDAP_KEY_PATH') or None
+    LDAP_SA_BIND_DN = os.environ.get('LDAP_SA_BIND_DN') or None
+    LDAP_SA_PASSWORD = os.environ.get('LDAP_SA_PASSWORD') or None
+    LDAP_BASE_DN = os.environ.get('LDAP_BASE_DN') or None
 
     # Database Settings
     SQLALCHEMY_COMMIT_ON_TEARDOWN = True
@@ -129,6 +143,7 @@ class TestingConfig(Config):
 
 
 class ProductionConfig(Config):
+    # TODO: complete me
     VIRUS_SCAN_ENABLED = True
     ELASTICSEARCH_ENABLED = True
 

@@ -15,10 +15,12 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from app import upload_redis as redis
+from app.constants import permission
 from app.lib.utils import (
     b64decode_lenient,
     eval_request_bool,
 )
+from app.lib.permission_utils import has_permission
 from app.models import Responses
 from app.constants import UPDATED_FILE_DIRNAME
 from app.upload import upload
@@ -36,6 +38,7 @@ from app.upload.utils import (
 
 
 @upload.route('/<request_id>', methods=['POST'])
+@has_permission(permission.ADD_FILE)
 def post(request_id):
     """
     Create a new upload.
@@ -49,6 +52,11 @@ def post(request_id):
         save the uploaded file to the 'updated' directory
         (this indicates the file is meant to replace
         a previously uploaded file)
+    - response_id (int)
+        the id of a response associated with the file
+        this upload is replacing
+        - REQUIRED if 'update' is 'true'
+        - ignored if 'update' is 'false'
 
     :returns: {
         "name": file name,
@@ -59,7 +67,8 @@ def post(request_id):
     file_ = files[next(files.keys())]
     filename = secure_filename(file_.filename)
     is_update = eval_request_bool(request.form.get('update'))
-    if not is_update and upload_exists(request_id, filename):
+    response_id = request.form.get('response_id') if is_update else None
+    if upload_exists(request_id, filename, response_id):
         response = {
             "files": [{
                 "name": filename,
@@ -87,6 +96,9 @@ def post(request_id):
                 file_type = None
                 if start == 0:
                     valid_file_type, file_type = is_valid_file_type(file_)
+                    if os.path.exists(filepath):
+                        # remove existing file (upload 'restarted' for same file)
+                        os.remove(filepath)
 
                 if valid_file_type:
                     redis.set(key, upload_status.PROCESSING)
@@ -95,13 +107,13 @@ def post(request_id):
                         fp.write(file_.stream.read())
                     # scan if last chunk written
                     if os.path.getsize(filepath) == size:
-                        scan_and_complete_upload.delay(request_id, filepath, is_update)
+                        scan_and_complete_upload.delay(request_id, filepath, is_update, response_id)
             else:
                 valid_file_type, file_type = is_valid_file_type(file_)
                 if valid_file_type:
                     redis.set(key, upload_status.PROCESSING)
                     file_.save(filepath)
-                    scan_and_complete_upload.delay(request_id, filepath, is_update)
+                    scan_and_complete_upload.delay(request_id, filepath, is_update, response_id)
 
             if not valid_file_type:
                 response = {
@@ -155,7 +167,6 @@ def delete(r_id_type, r_id, filecode):
         On failure:
             { "error": error message }
     """
-    # TODO: check current user request permissions
     filename = secure_filename(b64decode_lenient(filecode))
     if r_id_type not in ["request", "response"]:
         response = {"error": "Invalid ID type."}

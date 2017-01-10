@@ -1,8 +1,12 @@
-<h4>
-    <a data-target="#requesterModal" data-toggle="modal" class="MainNavText" id="MainNavHelp" href="#requesterModal">
-        {{ request.requester.name }}
-    </a>
-</h4>
+<hr>
+<div class="text-center">
+    <h4>Requester</h4>
+    <h4>
+        <a data-target="#requesterModal" data-toggle="modal" class="MainNavText" id="MainNavHelp" href="#requesterModal">
+            {{ request.requester.name }}
+        </a>
+    </h4>
+</div>
 
 <div class="modal fade" id="requesterModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -13,11 +17,13 @@
                 <h4 class="modal-title">Requester Information</h4>
             </div>
             <form id="user-info" action="/request/edit_requester_info/{{ request.id }}" method="POST">
+                {{ edit_requester_form.csrf_token }}
+
                 <div class="modal-body">
                     <div id="requester-name">{{ request.requester.name }}</div>
                     <div class="contact-form-error-message"></div>
                     {{ edit_requester_form.email.label }}
-                    {{ edit_requester_form.email(id='inputEmail', type='email', class='form-control') }}
+                    {{ edit_requester_form.email(id='inputEmail', type='email', class='form-control', maxlength="254") }}
 
                     {{ edit_requester_form.title.label }}
                     {{ edit_requester_form.title(id='inputTitle', class='form-control') }}

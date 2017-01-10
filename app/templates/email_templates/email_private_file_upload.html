@@ -1,39 +1,20 @@
-{% if email_file_content %}
-    {{ email_file_content | safe}}
-
-    <ul>
-        Private Files:
-        {% for filename, link in agency_file_links['private'].items() %}
-            <li style="list-style: none"><a href="{{ link }}">{{ filename }}</a></li>
-        {% endfor %}
-    </ul>
-{% else %}
-    <p>Attention {{ agency_name }} Users,<p>
-
-    <p>The following files were uploaded to <a href="{{ page }}">{{ request_id }}</a>:</p>
-
-    {% if agency_file_links %}
-        <ul>
-            {% if agency_file_links['private'].items() %}
-                Private Files:
-                {% for filename, link in agency_file_links['private'].items() %}
-                    <li style="list-style: none"><a href="{{ link }}">{{ filename }}</a></li>
-                {% endfor %}
-            {% endif %}
-        </ul>
+{% if default_content %}
+    <p>
+        Attention {{ agency_name }} Users,
+    </p>
+    <div class="mceNonEditable">
         <p>
-        <ul>
-            Release Files sent to the Requester:
-            {% for filename, link in agency_file_links['release'].items() %}
-            <li style="list-style: none"><a href="{{ link }}">{{ filename }}</a></li>
-            {% endfor %}
+            The following file(s) were added to <a href='{{ page }}'>{{ request_id }}</a> and are private:
         </p>
-        </ul>
-    {% else %}
         <ul>
-            {% for filename, link in files_links.items() %}
-                <li style="list-style: none"><a href="#">{{ filename }}</a></li>
+            {% for file in private_links %}
+                <li style="list-style: none">
+                    {{ file['title'] }}: <a href="{{ file['link'] }}">{{ file['filename'] }}</a>
+                </li>
             {% endfor %}
         </ul>
-    {% endif %}
+    </div>
+    <p><br></p>
+{% else %}
+    {{ content | safe }}
 {% endif %}

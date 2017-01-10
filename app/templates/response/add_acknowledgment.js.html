@@ -34,7 +34,7 @@
             dateFormat: "yy-mm-dd",
             daysOfWeekDisabled: [0, 6],
             beforeShowDay: notHolidayOrWeekend,
-            minDate: "{{ request.due_date }}".split()[0]
+            minDate: "{{ request.due_date }}".split(' ')[0]
         });
         date.keydown(false);
 
@@ -43,6 +43,7 @@
             if ($(this).val() === dateSelectVal) {
                 date.parent().show();
                 info.attr("data-parsley-required", "");
+                info.attr("data-parsley-required-message", "This field is required when selecting a custom due date.");
                 info.attr("data-parsley-minlength", "20");
             }
             else {
@@ -78,12 +79,19 @@
                     type: "POST",
                     data: {
                         request_id: "{{ request.id }}",
-                        // FIXME: this can be inferred by server through 'type'
                         type: "acknowledgment",
+                        acknowledgment: JSON.stringify({
+                            days: days.val(),
+                            date: date.val(),
+                            info: info.val()
+                        }),
+                        tz_name: jstz.determine().name()
                     },
                     success: function(data) {
-                        tinyMCE.get("acknowledgment-email-body").setContent(data.template);
+                        emailContent = second.find(".email-content-hidden");
+                        emailContent.html(data.template);
                         flask_moment_render_all();
+                        tinyMCE.get("acknowledgment-email-body").setContent(emailContent.html());
                     }
                 });
                 first.hide();
@@ -100,20 +108,13 @@
                 data: {
                     request_id: "{{ request.id }}",
                     type: "acknowledgment",
-                    acknowledgment: JSON.stringify({
-                        days: days.val(),
-                        date: date.val(),
-                        info: info.val()
-                    }),
                     email_content: second.find("#acknowledgment-email-body").val(),
-                    tz_name: jstz.determine().name()
                 },
                 success: function(data) {
-                    var emailSummary = third.find(".email-summary");
-                    emailSummary.html(data.template);
-                    flask_moment_render_all();
-                    third.find("input[name='email-summary']").val(emailSummary.html());
+                    third.find(".email-summary").html(data.template);
+                    third.find("input[name='email-summary']").val(data.template);
                     third.find("input[name='tz-name']").val(jstz.determine().name());
+                    third.find(".confirmation-header").text(data.header)
                 }
             });
 
@@ -131,9 +132,8 @@
             second.show();
         });
 
-        submit.click(function() {
-            $(this).attr("disabled", true);
-            form.submit();
+        form.submit(function() {
+            submit.attr("disabled", true);
         });
 
     });

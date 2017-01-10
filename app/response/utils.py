@@ -38,11 +38,13 @@ from app.constants import (
     EMAIL_TEMPLATE_FOR_TYPE
 )
 from app.constants.request_date import RELEASE_PUBLIC_DAYS
-from app.constants.response_privacy import PRIVATE, RELEASE_AND_PUBLIC
-from app.lib.date_utils import get_due_date, process_due_date
+from app.constants.response_privacy import PRIVATE, RELEASE_AND_PUBLIC, RELEASE_AND_PRIVATE
+from app.constants import permission
+from app.lib.date_utils import get_due_date, process_due_date, get_release_date
 from app.lib.db_utils import create_object, update_object, delete_object
 from app.lib.email_utils import send_email, get_agency_emails
-from app.lib.utils import eval_request_bool
+from app.lib.redis_utils import redis_get_file_metadata, redis_delete_file_metadata
+from app.lib.utils import eval_request_bool, UserRequestException
 from app.models import (
     Events,
     Notes,
@@ -54,13 +56,14 @@ from app.models import (
     Reasons,
     Determinations,
     Emails,
-    ResponseTokens
+    ResponseTokens,
+    Users,
 )
 
 
 # TODO: class ResponseProducer()
 
-def add_file(request_id, filename, title, privacy):
+def add_file(request_id, filename, title, privacy, is_editable):
     """
     Create and store the file response object for the specified request.
     Gets the file mimetype and magic file check from a helper function in lib.file_utils
@@ -74,23 +77,32 @@ def add_file(request_id, filename, title, privacy):
 
     """
     path = os.path.join(current_app.config['UPLOAD_DIRECTORY'], request_id, filename)
+    try:
+        size, mime_type, hash_ = redis_get_file_metadata(request_id, path)
+        redis_delete_file_metadata(request_id, path)
+    except AttributeError:
+        size = fu.getsize(path)
+        mime_type = fu.get_mime_type(path)
+        hash_ = fu.get_hash(path)
+
     response = Files(
         request_id,
         privacy,
         title,
         filename,
-        fu.get_mime_type(path),
-        fu.getsize(path),
-        fu.get_hash(path),
+        mime_type,
+        size,
+        hash_,
+        is_editable=is_editable
     )
     create_object(response)
 
-    _create_response_event(response, event_type.FILE_ADDED)
+    create_response_event(event_type.FILE_ADDED, response)
 
     return response
 
 
-def add_note(request_id, note_content, email_content, privacy):
+def add_note(request_id, note_content, email_content, privacy, is_editable):
     """
     Create and store the note object for the specified request.
     Store the note content into the Notes table.
@@ -102,10 +114,17 @@ def add_note(request_id, note_content, email_content, privacy):
     :param privacy: The privacy option of the note
 
     """
-    response = Notes(request_id, privacy, note_content)
+    response = Notes(request_id, privacy, note_content, is_editable=is_editable)
     create_object(response)
-    _create_response_event(response, event_type.NOTE_ADDED)
-    _send_response_email(request_id, privacy, email_content)
+    create_response_event(event_type.NOTE_ADDED, response)
+    if privacy != PRIVATE:
+        subject = 'Response Added to {} - Note'.format(request_id)
+    else:
+        subject = 'Note Added to {}'.format(request_id)
+    _send_response_email(request_id,
+                         privacy,
+                         email_content,
+                         subject)
 
 
 def add_acknowledgment(request_id, info, days, date, tz_name, email_content):
@@ -138,8 +157,11 @@ def add_acknowledgment(request_id, info, days, date, tz_name, email_content):
             new_due_date,
         )
         create_object(response)
-        _create_response_event(response, event_type.REQ_ACKNOWLEDGED)
-        _send_response_email(request_id, privacy, email_content)
+        create_response_event(event_type.REQ_ACKNOWLEDGED, response)
+        _send_response_email(request_id,
+                             privacy,
+                             email_content,
+                             'Request {} Acknowledged'.format(request_id))
 
 
 def add_denial(request_id, reason_ids, email_content):
@@ -163,17 +185,20 @@ def add_denial(request_id, reason_ids, email_content):
             request_id,
             privacy,
             determination_type.DENIAL,
-            ",".join(Reasons.query.filter_by(id=reason_id).one().content
+            "|".join(Reasons.query.filter_by(id=reason_id).one().content
                      for reason_id in reason_ids)
         )
         create_object(response)
-        _create_response_event(response, event_type.REQ_CLOSED)
+        create_response_event(event_type.REQ_CLOSED, response)
         update_object(
             {'agency_description_release_date': calendar.addbusdays(datetime.utcnow(), RELEASE_PUBLIC_DAYS)},
             Requests,
             request_id
         )
-        _send_response_email(request_id, privacy, email_content)
+        _send_response_email(request_id,
+                             privacy,
+                             email_content,
+                             'Request {} Closed'.format(request_id))
 
 
 def add_closing(request_id, reason_ids, email_content):
@@ -185,7 +210,21 @@ def add_closing(request_id, reason_ids, email_content):
     :param email_content: email body associated with the closing
 
     """
-    if Requests.query.filter_by(id=request_id).one().status != request_status.CLOSED:
+    current_request = Requests.query.filter_by(id=request_id).one()
+    if current_request.status != request_status.CLOSED:
+        if current_request.privacy['agency_description'] or not current_request.agency_description:
+            for privacy in current_request.responses.with_entities(Responses.privacy, Responses.type).filter(
+                            Responses.type != response_type.NOTE, Responses.type != response_type.EMAIL).all():
+                if privacy[0] != RELEASE_AND_PUBLIC:
+                    raise UserRequestException(action="close",
+                                               request_id=current_request.id,
+                                               reason="Agency Description is private and responses are not public"
+                                               )
+            if current_request.privacy['title']:
+                raise UserRequestException(action="close",
+                                           request_id=current_request.id,
+                                           reason="Agency Description is private and title is private"
+                                           )
         update_object(
             {'status': request_status.CLOSED},
             Requests,
@@ -196,17 +235,20 @@ def add_closing(request_id, reason_ids, email_content):
             request_id,
             privacy,
             determination_type.CLOSING,
-            ",".join(Reasons.query.filter_by(id=reason_id).one().content
+            "|".join(Reasons.query.filter_by(id=reason_id).one().content
                      for reason_id in reason_ids)
         )
         create_object(response)
-        _create_response_event(response, event_type.REQ_CLOSED)
+        create_response_event(event_type.REQ_CLOSED, response)
         update_object(
             {'agency_description_release_date': calendar.addbusdays(datetime.utcnow(), RELEASE_PUBLIC_DAYS)},
             Requests,
             request_id
         )
-        _send_response_email(request_id, privacy, email_content)
+        _send_response_email(request_id,
+                             privacy,
+                             email_content,
+                             'Request {} Closed'.format(request_id))
 
 
 def add_reopening(request_id, date, tz_name, email_content):
@@ -230,7 +272,7 @@ def add_reopening(request_id, date, tz_name, email_content):
             new_due_date
         )
         create_object(response)
-        _create_response_event(response, event_type.REQ_REOPENED)
+        create_response_event(event_type.REQ_REOPENED, response)
         update_object(
             {'status': request_status.IN_PROGRESS,
              'due_date': new_due_date,
@@ -238,7 +280,10 @@ def add_reopening(request_id, date, tz_name, email_content):
             Requests,
             request_id
         )
-        _send_response_email(request_id, privacy, email_content)
+        _send_response_email(request_id,
+                             privacy,
+                             email_content,
+                             'Request {} Re-Opened'.format(request_id))
 
 
 def add_extension(request_id, length, reason, custom_due_date, tz_name, email_content):
@@ -270,11 +315,14 @@ def add_extension(request_id, length, reason, custom_due_date, tz_name, email_co
         new_due_date
     )
     create_object(response)
-    _create_response_event(response, event_type.REQ_EXTENDED)
-    _send_response_email(request_id, privacy, email_content)
+    create_response_event(event_type.REQ_EXTENDED, response)
+    _send_response_email(request_id,
+                         privacy,
+                         email_content,
+                         'Request {} Extended'.format(request_id))
 
 
-def add_link(request_id, title, url_link, email_content, privacy):
+def add_link(request_id, title, url_link, email_content, privacy, is_editable=True):
     """
     Create and store the link object for the specified request.
     Store the link content into the Links table.
@@ -288,13 +336,20 @@ def add_link(request_id, title, url_link, email_content, privacy):
     :param privacy: The privacy option of the link
 
     """
-    response = Links(request_id, privacy, title, url_link)
+    response = Links(request_id, privacy, title, url_link, is_editable=is_editable)
     create_object(response)
-    _create_response_event(response, event_type.LINK_ADDED)
-    _send_response_email(request_id, privacy, email_content)
+    create_response_event(event_type.LINK_ADDED, response)
+    if privacy != PRIVATE:
+        subject = 'Response Added to {} - Link'.format(request_id)
+    else:
+        subject = 'Link Added to {}'.format(request_id)
+    _send_response_email(request_id,
+                         privacy,
+                         email_content,
+                         subject)
 
 
-def add_instruction(request_id, instruction_content, email_content, privacy):
+def add_instruction(request_id, instruction_content, email_content, privacy, is_editable=True):
     """
     Creates and stores the instruction object for the specified request.
     Stores the instruction content into the Instructions table.
@@ -306,10 +361,17 @@ def add_instruction(request_id, instruction_content, email_content, privacy):
     :param privacy: The privacy option of the instruction
 
     """
-    response = Instructions(request_id, privacy, instruction_content)
+    response = Instructions(request_id, privacy, instruction_content, is_editable=is_editable)
     create_object(response)
-    _create_response_event(response, event_type.INSTRUCTIONS_ADDED)
-    _send_response_email(request_id, privacy, email_content)
+    create_response_event(event_type.INSTRUCTIONS_ADDED, response)
+    if privacy != PRIVATE:
+        subject = 'Response Added to {} - Offline Access Instructions'.format(request_id)
+    else:
+        subject = 'Offline Instructions Added to {}'.format(request_id)
+    _send_response_email(request_id,
+                         privacy,
+                         email_content,
+                         subject)
 
 
 def _add_email(request_id, subject, email_content, to=None, cc=None, bcc=None):
@@ -326,7 +388,7 @@ def _add_email(request_id, subject, email_content, to=None, cc=None, bcc=None):
     :param bcc: list of person(s) email is being bcc'ed
 
     """
-    to = ','.join([email.replace('{', '').replace('}', '') for email in to]) if to else None  # TODO: see why
+    to = ','.join([email.replace('{', '').replace('}', '') for email in to]) if to else None
     cc = ','.join([email.replace('{', '').replace('}', '') for email in cc]) if cc else None
     bcc = ','.join([email.replace('{', '').replace('}', '') for email in bcc]) if bcc else None
 
@@ -340,7 +402,7 @@ def _add_email(request_id, subject, email_content, to=None, cc=None, bcc=None):
         body=email_content
     )
     create_object(response)
-    _create_response_event(response, event_type.EMAIL_NOTIFICATION_SENT)
+    create_response_event(event_type.EMAIL_NOTIFICATION_SENT, response)
 
 
 def add_sms():
@@ -443,6 +505,9 @@ def process_email_template_request(request_id, data):
             response_type.LINK: _link_email_handler,
             response_type.NOTE: _note_email_handler,
             response_type.INSTRUCTIONS: _instruction_email_handler,
+            response_type.USER_REQUEST_ADDED: _user_request_added_email_handler,
+            response_type.USER_REQUEST_EDITED: _user_request_edited_email_handler,
+            response_type.USER_REQUEST_REMOVED: _user_request_removed_email_handler
         }
     return handler_for_type[rtype](request_id, data, page, agency_name, email_template)
 
@@ -460,11 +525,12 @@ def _acknowledgment_email_handler(request_id, data, page, agency_name, email_tem
     :return: the HTML of the rendered template of an acknowledgement
     """
     acknowledgment = data.get('acknowledgment')
+    header = "The following will be emailed to the Requester:"
 
     if acknowledgment is not None:
         acknowledgment = json.loads(acknowledgment)
-        default_content = False
-        content = data['email_content']
+        default_content = True
+        content = None
         date = _get_new_due_date(
             request_id,
             acknowledgment['days'],
@@ -472,10 +538,10 @@ def _acknowledgment_email_handler(request_id, data, page, agency_name, email_tem
             data['tz_name'])
         info = acknowledgment['info'].strip() or None
     else:
-        default_content = True
-        content = None
-        date = ''
-        info = ''
+        default_content = False
+        content = data['email_content']
+        date = None
+        info = None
     return jsonify({"template": render_template(email_template,
                                                 default_content=default_content,
                                                 content=content,
@@ -483,7 +549,8 @@ def _acknowledgment_email_handler(request_id, data, page, agency_name, email_tem
                                                 agency_name=agency_name,
                                                 date=date,
                                                 info=info,
-                                                page=page)}), 200
+                                                page=page),
+                    "header": header}), 200
 
 
 def _denial_email_handler(request_id, data, page, agency_name, email_template):
@@ -493,6 +560,7 @@ def _denial_email_handler(request_id, data, page, agency_name, email_template):
         agency_name=agency_name,
         reasons=[Reasons.query.filter_by(id=reason_id).one().content
                  for reason_id in data.getlist('reason_ids[]')],
+        agency_appeals_email=Requests.query.filter_by(id=request_id).one().agency.appeals_email,
         page=page
     )}), 200
 
@@ -511,6 +579,7 @@ def _closing_email_handler(request_id, data, page, agency_name, email_template):
     """
     reasons = [Reasons.query.filter_by(id=reason_id).one().content
                for reason_id in data.getlist('reason_ids[]')]
+    header = "The following will be emailed to the Requester:"
     if eval_request_bool(data['confirmation']):
         default_content = False
         content = data['email_content']
@@ -524,8 +593,9 @@ def _closing_email_handler(request_id, data, page, agency_name, email_template):
         request_id=request_id,
         agency_name=agency_name,
         reasons=reasons,
-        page=page
-    )}), 200
+        agency_appeals_email=Requests.query.filter_by(id=request_id).one().agency.appeals_email,
+        page=page),
+        "header": header}), 200
 
 
 def _reopening_email_handler(request_id, data, page, agency_name, email_template):
@@ -549,6 +619,94 @@ def _reopening_email_handler(request_id, data, page, agency_name, email_template
     )}), 200
 
 
+def _user_request_added_email_handler(request_id, data, page, agency_name, email_template):
+    """
+    Process email template for reopening a request.
+
+    :param request_id: FOIL request ID
+    :param data: data from frontend AJAX call
+    :param page: string url link of the request
+    :param agency_name: string name of the agency of the request
+    :param email_template: raw HTML email template of a response
+
+    :return: the HTML of the rendered email template of a reopening
+    """
+
+    name = Users.query.filter_by(guid=data['guid']).first().name
+    original_permissions = [int(i) for i in data.getlist('permission[]')]
+    permissions = []
+    for i, perm in enumerate(permission.ALL):
+        if i in original_permissions:
+            permissions.append(perm.label)
+
+    return jsonify({"template": render_template(
+        email_template,
+        request_id=request_id,
+        agency_name=agency_name,
+        added_permissions=permissions,
+        name=name,
+        page=page
+    ), "name": name}), 200
+
+
+def _user_request_edited_email_handler(request_id, data, page, agency_name, email_template):
+    """
+    Process email template for reopening a request.
+
+    :param request_id: FOIL request ID
+    :param data: data from frontend AJAX call
+    :param page: string url link of the request
+    :param agency_name: string name of the agency of the request
+    :param email_template: raw HTML email template of a response
+
+    :return: the HTML of the rendered email template of a reopening
+    """
+    name = Users.query.filter_by(guid=data['guid']).first().name
+    original_permissions = [int(i) for i in data.getlist('permission[]')]
+    added_permissions = []
+    removed_permissions = []
+    for i, perm in enumerate(permission.ALL):
+        if i in original_permissions:
+            added_permissions.append(perm.label)
+        else:
+            removed_permissions.append(perm.label)
+
+    return jsonify({"template": render_template(
+        email_template,
+        request_id=request_id,
+        agency_name=agency_name,
+        added_permissions=added_permissions,
+        removed_permissions=removed_permissions,
+        name=name,
+        admin=False,
+        page=page
+    ), "name": name}), 200
+
+
+def _user_request_removed_email_handler(request_id, data, page, agency_name, email_template):
+    """
+    Process email template for reopening a request.
+
+    :param request_id: FOIL request ID
+    :param data: data from frontend AJAX call
+    :param page: string url link of the request
+    :param agency_name: string name of the agency of the request
+    :param email_template: raw HTML email template of a response
+
+    :return: the HTML of the rendered email template of a reopening
+    """
+
+    name = Users.query.filter_by(guid=data['guid']).first().name
+    return jsonify({"template": render_template(
+        email_template,
+        request_id=request_id,
+        agency_name=agency_name,
+        page=page,
+        name=name,
+        admin=False
+    ), "name": name}), 200
+
+
 def _extension_email_handler(request_id, data, page, agency_name, email_template):
     """
     Process email template for an extension.
@@ -564,11 +722,12 @@ def _extension_email_handler(request_id, data, page, agency_name, email_template
     :return: the HTML of the rendered template of an extension response
     """
     extension = data.get('extension')
+    header = "The following will be emailed to the Requester:"
     # if data['extension'] exists, use email_content as template with specific extension email template
     if extension is not None:
         extension = json.loads(extension)
-        default_content = False
-        content = data['email_content']
+        default_content = True
+        content = None
         # calculates new due date based on selected value if custom due date is not selected
         new_due_date = _get_new_due_date(
             request_id,
@@ -578,10 +737,10 @@ def _extension_email_handler(request_id, data, page, agency_name, email_template
         reason = extension['reason']
     # use default_content in response template
     else:
-        default_content = True
-        content = None
-        new_due_date = ''
-        reason = ''
+        default_content = False
+        new_due_date = None
+        reason = None
+        content = data['email_content']
     return jsonify({"template": render_template(email_template,
                                                 default_content=default_content,
                                                 content=content,
@@ -589,7 +748,8 @@ def _extension_email_handler(request_id, data, page, agency_name, email_template
                                                 agency_name=agency_name,
                                                 new_due_date=new_due_date,
                                                 reason=reason,
-                                                page=page)}), 200
+                                                page=page),
+                    "header": header}), 200
 
 
 def _file_email_handler(request_id, data, page, agency_name, email_template):
@@ -607,40 +767,63 @@ def _file_email_handler(request_id, data, page, agency_name, email_template):
     :return: the HTML of the rendered template of a file response
     """
     # create a dictionary of filenames to be passed through jinja to email template
-    files_links = {}
+    private_links = []
+    release_public_links = []
+    release_private_links = []
+
+    release_date = None
+    agency_default_email = None
 
     files = data.get('files')
     # if data['files'] exists, use email_content as template with specific file email template
     if files is not None:
         files = json.loads(files)
-        default_content = False
-        content = data['email_content']
-    # use default_content in response template
-    else:
-        files = []
         default_content = True
         content = None
+        header = "The following will be emailed to the Requester:"
         if eval_request_bool(data['is_private']):
             email_template = 'email_templates/email_private_file_upload.html'
+            header = "The following will be emailed to all Assigned Users:"
+        for file_ in files:
+            file_link = {'filename': file_['filename'],
+                         'title': file_['title'],
+                         'link': '#'}
+            if eval_request_bool(data['is_private']):
+                private_links.append(file_link)
+            elif file_.get('privacy') == RELEASE_AND_PUBLIC:
+                release_public_links.append(file_link)
+            elif file_.get('privacy') == RELEASE_AND_PRIVATE:
+                release_private_links.append(file_link)
+        if release_public_links or release_private_links:
+            release_date = get_release_date(datetime.utcnow(),
+                                            RELEASE_PUBLIC_DAYS,
+                                            data.get('tz_name')).strftime("%A, %B %d, %Y")
+            agency_default_email = Requests.query.filter_by(id=request_id).first().agency.default_email
+    # use default_content in response template
+    else:
+        default_content = False
+        header = None
+        content = data['email_content']
     # iterate through files dictionary to create and append links of files with privacy option of not private
-    for file_ in files:
-        if file_['privacy'] != PRIVATE or eval_request_bool(data['is_private']):
-            filename = file_['filename']
-            files_links[filename] = "http://127.0.0.1:5000/request/view/{}".format(filename)
     return jsonify({"template": render_template(email_template,
                                                 default_content=default_content,
                                                 content=content,
                                                 request_id=request_id,
                                                 page=page,
                                                 agency_name=agency_name,
-                                                files_links=files_links)}), 200
+                                                agency_default_email=agency_default_email,
+                                                release_date=release_date,
+                                                release_public_links=release_public_links,
+                                                release_private_links=release_private_links,
+                                                private_links=private_links),
+                    "header": header}), 200
 
 
 def _link_email_handler(request_id, data, page, agency_name, email_template):
     """
     Process email template for a link instruction.
-    Checks if dictionary of link data exists. If not, renders the default response email template.
-    If link dictionary exists, renders the link response template with provided arguments.
+    Checks if dictionary of link data exists and renders the default response email template.
+    If link dictionary does not exist, use email_content from frontend to render confirmation.
 
     :param request_id: FOIL request ID of the request the file is being added to
     :param data: data from the frontend AJAX call
@@ -650,40 +833,48 @@ def _link_email_handler(request_id, data, page, agency_name, email_template):
 
     :return: the HTML of the rendered template of a file response
     """
+    release_date = None
     link = data.get('link')
-    # if data['link'] exists, use email_content as template with specific link email template
+    # if data['link'] exists get instruction content and privacy, and render template accordingly
     if link is not None:
         link = json.loads(link)
-        default_content = False
-        content = data['email_content']
         url = link['url']
-        privacy = link['privacy']
-    # use default_content in response template
-    else:
-        url = ''
+        title = link['title']
         content = None
-        privacy = None
-        if data['privacy'] == PRIVATE:
-            email_template = 'email_templates/email_response_private_link.html'
-            default_content = None
+        privacy = link.get('privacy')
+        if privacy == PRIVATE:
+            header = "The following will be emailed to all Assigned Users:"
         else:
-            default_content = True
+            header = "The following will be emailed to the Requester:"
+            if privacy == RELEASE_AND_PUBLIC:
+                release_date = get_release_date(datetime.utcnow(),
+                                                RELEASE_PUBLIC_DAYS,
+                                                data.get('tz_name')).strftime("%A, %B %d, %Y")
+    # use email_content from frontend to render confirmation
+    else:
+        header = None
+        url = None
+        title = None
+        privacy = None
+        content = data['email_content']
     return jsonify({"template": render_template(email_template,
-                                                default_content=default_content,
                                                 content=content,
                                                 request_id=request_id,
                                                 agency_name=agency_name,
                                                 url=url,
+                                                title=title,
                                                 page=page,
+                                                release_date=release_date,
                                                 privacy=privacy,
-                                                response_privacy=response_privacy)}), 200
+                                                response_privacy=response_privacy),
+                    "header": header}), 200
 
 
 def _note_email_handler(request_id, data, page, agency_name, email_template):
     """
     Process email template for note
-    Checks if dictionary of note data exists. If not, renders the default response email template.
-    If note dictionary exists, renders the note response template with provided arguments.
+    Checks if dictionary of note data exists and renders the default response email template.
+    If note dictionary does not exist, use email_content from frontend to render confirmation.
 
     :param request_id: FOIL request ID of the request the note is being added to
     :param data: data from the frontend AJAX call
@@ -693,41 +884,44 @@ def _note_email_handler(request_id, data, page, agency_name, email_template):
 
     :return: the HTML of the rendered template of a note response
     """
+    release_date = None
     note = data.get('note')
-    # if data['note'] exists, use email_content as template with specific link email template
     if note is not None:
         note = json.loads(note)
-        default_content = False
-        content = data['email_content']
         note_content = note['content']
-        privacy = note['privacy']
-    # use default_content in response template
-    else:
-        note_content = ''
         content = None
-        privacy = None
+        privacy = note.get('privacy')
         # use private email template for note if privacy is private
-        if data['privacy'] == PRIVATE:
-            email_template = 'email_templates/email_response_private_note.html'
-            default_content = None
+        if privacy == PRIVATE:
+            header = "The following will be emailed to all Assigned Users:"
         else:
-            default_content = True
+            header = "The following will be emailed to the Requester:"
+            if privacy == RELEASE_AND_PUBLIC:
+                release_date = get_release_date(datetime.utcnow(),
+                                                RELEASE_PUBLIC_DAYS,
+                                                data.get('tz_name')).strftime("%A, %B %d, %Y")
+    else:
+        header = None
+        note_content = None
+        privacy = None
+        content = data['email_content']
     return jsonify({"template": render_template(email_template,
-                                                default_content=default_content,
                                                 content=content,
                                                 request_id=request_id,
                                                 agency_name=agency_name,
                                                 note_content=note_content,
                                                 page=page,
+                                                release_date=release_date,
                                                 privacy=privacy,
-                                                response_privacy=response_privacy)}), 200
+                                                response_privacy=response_privacy),
+                    "header": header}), 200
 
 
 def _instruction_email_handler(request_id, data, page, agency_name, email_template):
     """
     Process email template for an offline instruction.
-    Checks if dictionary of instruction data exists. If not, renders the default response email template.
-    If instruction dictionary exists, renders the instruction response template with provided arguments.
+    Checks if dictionary of instruction data exists and renders the default response email template.
+    If instruction dictionary does not exist, use email_content from frontend to render confirmation.
 
     :param request_id: FOIL request ID of the request the instruction is being added to
     :param data: data from the frontend AJAX call
@@ -737,33 +931,38 @@ def _instruction_email_handler(request_id, data, page, agency_name, email_templa
 
     :return: the HTML of the rendered template of an instruction response
     """
+    release_date = None
     instruction = data.get('instruction')
-    # if data['instructions'] exists, use email_content as template with specific instructions template
+    # if data['instructions'] exists get instruction content and privacy, and render template accordingly
     if instruction is not None:
         instruction = json.loads(instruction)
-        default_content = False
-        content = data['email_content']
         instruction_content = instruction['content']
-        privacy = instruction['privacy']
-    # use default_content in response template
-    else:
-        instruction_content = ''
         content = None
-        privacy = None
-        if data['privacy'] == PRIVATE:
-            email_template = 'email_templates/email_response_private_instruction.html'
-            default_content = None
+        privacy = instruction.get('privacy')
+        if privacy == PRIVATE:
+            header = "The following will be emailed to all Assigned Users:"
         else:
-            default_content = True
+            header = "The following will be emailed to the Requester:"
+            if privacy == RELEASE_AND_PUBLIC:
+                release_date = get_release_date(datetime.utcnow(),
+                                                RELEASE_PUBLIC_DAYS,
+                                                data.get('tz_name')).strftime("%A, %B %d, %Y")
+    # use email_content from frontend to render confirmation
+    else:
+        header = None
+        instruction_content = None
+        privacy = None
+        content = data['email_content']
     return jsonify({"template": render_template(email_template,
-                                                default_content=default_content,
                                                 content=content,
                                                 request_id=request_id,
                                                 agency_name=agency_name,
                                                 instruction_content=instruction_content,
                                                 page=page,
+                                                release_date=release_date,
                                                 privacy=privacy,
-                                                response_privacy=response_privacy)}), 200
+                                                response_privacy=response_privacy),
+                    "header": header}), 200
 
 
 def _edit_email_handler(data):
@@ -821,44 +1020,49 @@ def _get_edit_response_template(editor):
         if editor.response.type == response_type.FILE \
         else os.path.join(current_app.config['EMAIL_TEMPLATE_DIR'], data['template_name'])
     email_summary_requester = None
-    agency = False
+    release_and_viewable = data.get('privacy') != PRIVATE and editor.requester_viewable
+    was_private = editor.data_old.get('privacy') == PRIVATE
+    requester_content = None
+    agency_content = None
 
     if eval_request_bool(data.get('confirmation')) or editor.update:
         default_content = False
         agency_content = data['email_content']
 
-        release_and_viewable = data['privacy'] != PRIVATE and editor.requester_viewable
-        was_private = editor.data_old.get('privacy') == PRIVATE
-
         if release_and_viewable or was_private:
             requester_content = data['email_content']
             agency_content = None
-            email_summary_requester = render_template(email_template,
-                                                      default_content=default_content,
-                                                      content=requester_content,
-                                                      request_id=editor.response.request.id,
-                                                      agency_name=agency_name,
-                                                      response=editor.response,
-                                                      response_data=editor,
-                                                      page=page,
-                                                      privacy=data['privacy'],
-                                                      response_privacy=response_privacy)
-        if release_and_viewable:
-            recipient = "all associated participants"
-        elif was_private:
+
+        if was_private:
             recipient = "the Requester"
+        elif release_and_viewable:
+            recipient = "all associated participants"
         else:
             recipient = "all Assigned Users"
         header = "The following will be emailed to {}:".format(recipient)
-
-        agency = True
     else:
-        agency_content = None
-        if data['privacy'] == PRIVATE:
+        if (data.get(
+                'privacy') == PRIVATE or not editor.requester_viewable) and editor.response.type != response_type.FILE:
             email_template = 'email_templates/email_edit_private_response.html'
             default_content = None
         else:
             default_content = True
+
+    # render email_template for requester if requester viewable keys are edited or privacy changed from private
+    if release_and_viewable or was_private:
+        email_summary_requester = render_template(email_template,
+                                                  default_content=default_content,
+                                                  content=requester_content,
+                                                  request_id=editor.response.request.id,
+                                                  agency_name=agency_name,
+                                                  response=editor.response,
+                                                  response_data=editor,
+                                                  page=page,
+                                                  privacy=data.get('privacy'),
+                                                  response_privacy=response_privacy)
+        default_content = True
+
+    agency = True
     # email_summary_edited rendered every time for email that agency receives
     email_summary_edited = render_template(email_template,
                                            default_content=default_content,
@@ -868,7 +1072,7 @@ def _get_edit_response_template(editor):
                                            response=editor.response,
                                            response_data=editor,
                                            page=page,
-                                           privacy=data['privacy'],
+                                           privacy=data.get('privacy'),
                                            response_privacy=response_privacy,
                                            agency=agency)
     return email_summary_requester, email_summary_edited, header
@@ -890,19 +1094,21 @@ def get_email_key(response_id, requester=False):
     return '_'.join((str(response_id), 'requester' if requester else 'agency'))
 
 
-def get_file_links(response, agency_file_links, requester_file_links):
+def get_file_links(response, release_public_links, release_private_links, private_links):
     """
     Create file links for a file response based on privacy.
-    Add file link item to agency_file_links dictionary and to requester_file_links dictionary if file response is not
-    private.
+    Append a file_link dictionary to either release_public_links, release_private_links, and private_links, based on
+    privacy option.
 
     :param response: response object
-    :param agency_file_links: dictionary of agency file links containing nested dictionaries of private and release
-                              with both containing key, value of filename and file link
-    :param requester_file_links: dictionary of file links to the requester with key, value of filename and file link
+    :param release_public_links: list of dictionaries of release and public files containing key and values of filename,
+                                 title, and link to file
+    :param release_private_links: list of dictionaries of release and public files containing key and values of
+                                  filename, title, and link to file
+    :param private_links: list of dictionaries of private files containing key and values of filename, title, and
+                          link to file
 
-    :return: agency_file_links dictionary and requester_file_links (if file is not private) dictionary with
-             added file link item
+    :return: list with appended file_link dictionary based on privacy
     """
     resp = Responses.query.filter_by(id=response.id).one()
     path = '/response/' + str(response.id)
@@ -917,57 +1123,78 @@ def get_file_links(response, agency_file_links, requester_file_links):
             requester_link = requester_url + "?%s" % params
         else:
             requester_link = urljoin(flask_request.url_root, path)
-        requester_file_links[resp.name] = requester_link
-        agency_file_links['release'][resp.name] = agency_link
+        file_link = {'filename': resp.name,
+                     'title': resp.title,
+                     'link': requester_link}
+        if resp.privacy == RELEASE_AND_PUBLIC:
+            release_public_links.append(file_link)
+        else:
+            release_private_links.append(file_link)
     else:
-        agency_file_links['private'][resp.name] = agency_link
-    return agency_file_links, requester_file_links
+        file_link = {'filename': resp.name,
+                     'title': resp.title,
+                     'link': agency_link}
+        private_links.append(file_link)
+    return release_public_links, release_private_links, private_links
 
 
-def send_file_email(request_id, agency_file_links, requester_file_links, email_content):
+def send_file_email(request_id, release_public_links, release_private_links, private_links, email_content, replace_string):
     """
     Send email with file links detailing a file response has been added to the request.
-    Requester receives email only if requester_file_links dictionary has key and value.
-    Agency users always receive email.
+    Requester receives email only if release_public_links and release_private_links list is not empty.
+    Agency users are BCCed on the email the requester receives.
+    Agency users receive a separate email if only private files were uploaded.
 
     :param request_id: FOIL request ID
-    :param agency_file_links: dictionary of agency file links containing nested dictionaries of private and release
-                              with both containing key, value of filename and file link
-    :param requester_file_links: dictionary of file links to the requester with key, value of filename and file link
+    :param release_public_links: list of dictionaries of release and public files containing key and values of filename,
+                                 title, and link to file
+    :param release_private_links: list of dictionaries of release and public files containing key and values of
+    filename, title, and link to file
+    :param private_links: list of dictionaries of private files containing key and values of filename, title, and
+                          link to file
     :param email_content: string body of email from tinymce textarea
+    :param replace_string: alphanumeric random 32 character string to be replaced in email_content
 
-    :return:
     """
     page = urljoin(flask_request.host_url, url_for('request.view', request_id=request_id))
-    is_anon = None
-    if Requests.query.filter_by(id=request_id).one().requester.is_anonymous_requester:
-        is_anon = True
-    subject = 'Response Added'
+    is_anon = Requests.query.filter_by(id=request_id).one().requester.is_anonymous_requester
+    subject = 'Response Added to {} - File'.format(request_id)
     bcc = get_agency_emails(request_id)
     agency_name = Requests.query.filter_by(id=request_id).first().agency.name
     requester_email = Requests.query.filter_by(id=request_id).one().requester.email
-    if requester_file_links:
-        email_content_requester = render_template('email_templates/email_response_file.html',
-                                                  request_id=request_id,
-                                                  email_file_content=email_content,
-                                                  agency_name=agency_name,
-                                                  requester_file_links=requester_file_links,
-                                                  is_anon=is_anon)
+    if release_public_links or release_private_links:
+        email_content_requester = email_content.replace(replace_string,
+                                                        render_template('email_templates/response_file_links.html',
+                                                                        release_public_links=release_public_links,
+                                                                        release_private_links=release_private_links,
+                                                                        is_anon=is_anon
+                                                                        ))
         safely_send_and_add_email(request_id,
                                   email_content_requester,
+                                  'Response Added to {} - File'.format(request_id),
+                                  to=[requester_email],
+                                  bcc=bcc)
+        email_content_agency = render_template('email_templates/email_private_file_upload.html',
+                                               request_id=request_id,
+                                               default_content=True,
+                                               agency_name=agency_name,
+                                               private_links=private_links,
+                                               page=page)
+        safely_send_and_add_email(request_id,
+                                  email_content_agency,
+                                  'File(s) Added to {}'.format(request_id),
+                                  bcc=bcc)
+    else:
+        email_content_agency = email_content.replace(replace_string,
+                                                     render_template('email_templates/response_file_links.html',
+                                                                     request_id=request_id,
+                                                                     private_links=private_links,
+                                                                     page=page
+                                                                     ))
+        safely_send_and_add_email(request_id,
+                                  email_content_agency,
                                   subject,
-                                  to=[requester_email])
-        email_content = None
-    email_content_agency = render_template('email_templates/email_private_file_upload.html',
-                                           request_id=request_id,
-                                           email_file_content=email_content,
-                                           agency_name=agency_name,
-                                           agency_file_links=agency_file_links,
-                                           page=page)
-    safely_send_and_add_email(request_id,
-                              email_content_agency,
-                              subject,
-                              bcc=bcc)
+                                  bcc=bcc)
 
 
 def _send_edit_response_email(request_id, email_content_agency, email_content_requester=None):
@@ -983,7 +1210,6 @@ def _send_edit_response_email(request_id, email_content_agency, email_content_re
     :type email_content_agency: str
     :type email_content_requester: str
 
-    :return:
     """
     subject = 'Response Edited'
     bcc = get_agency_emails(request_id)
@@ -996,7 +1222,7 @@ def _send_edit_response_email(request_id, email_content_agency, email_content_re
                                   to=[requester_email])
 
 
-def _send_response_email(request_id, privacy, email_content):
+def _send_response_email(request_id, privacy, email_content, subject):
     """
     Function that sends email detailing a specific response has been added to a request.
     If the file privacy is private, only agency_ein users are emailed.
@@ -1009,7 +1235,6 @@ def _send_response_email(request_id, privacy, email_content):
     :param privacy: privacy option of link
 
     """
-    subject = 'Response Added'
     bcc = get_agency_emails(request_id)
     requester_email = Requests.query.filter_by(id=request_id).one().requester.email
     # Send email with link to requester and bcc agency_ein users as privacy option is release
@@ -1069,7 +1294,7 @@ def safely_send_and_add_email(request_id,
         print("Error:", e)
 
 
-def _create_response_event(response, events_type):
+def create_response_event(events_type, response):
     """
     Create and store event object for given response.
 
@@ -1077,13 +1302,9 @@ def _create_response_event(response, events_type):
     :param events_type: one of app.constants.event_type
 
     """
-    user = response.request.requester \
-        if current_user.is_anonymous else current_user
-    # FIXME: this is only for testing purposes, anonymous users cannot do anything with responses
-
     event = Events(request_id=response.request_id,
-                   user_id=user.guid,
-                   auth_user_type=user.auth_user_type,
+                   user_guid=current_user.guid,
+                   auth_user_type=current_user.auth_user_type,
                    type_=events_type,
                    timestamp=datetime.utcnow(),
                    response_id=response.id,
@@ -1186,7 +1407,7 @@ class ResponseEditor(metaclass=ABCMeta):
             type_=self.event_type,
             request_id=self.response.request_id,
             response_id=self.response.id,
-            user_id=self.user.guid,
+            user_guid=self.user.guid,
             auth_user_type=self.user.auth_user_type,
             timestamp=timestamp,
             previous_value=self.data_old,
@@ -1207,7 +1428,7 @@ class ResponseEditor(metaclass=ABCMeta):
                 datetime.utcnow(), RELEASE_PUBLIC_DAYS),
             response_privacy.RELEASE_AND_PRIVATE: None,
             response_privacy.PRIVATE: None,
-        }[self.data_new['privacy']]
+        }[self.data_new.get('privacy')]
 
     @property
     def deleted(self):
@@ -1263,19 +1484,30 @@ class RespFileEditor(ResponseEditor):
                     new_filename
                 )
                 if fu.exists(filepath):
+                    try:
+                        # fetch file metadata from redis store
+                        size, mime_type, hash_ = redis_get_file_metadata(
+                            self.response.id,
+                            filepath,
+                            is_update=True)
+                    except AttributeError:
+                        size = fu.getsize(filepath)
+                        mime_type = fu.get_mime_type(filepath)
+                        hash_ = fu.get_hash(filepath)
                     self.set_data_values('size',
                                          self.response.size,
-                                         fu.getsize(filepath))
+                                         size)
                     self.set_data_values('name',
                                          self.response.name,
                                          new_filename)
                     self.set_data_values('mime_type',
                                          self.response.mime_type,
-                                         fu.get_mime_type(filepath))
+                                         mime_type)
                     self.set_data_values('hash',
                                          self.response.hash,
-                                         fu.get_hash(filepath))
+                                         hash_)
                     if self.update:
+                        redis_delete_file_metadata(self.response.id, filepath, is_update=True)
                         self.replace_old_file(filepath)
                 else:
                     self.errors.append(
@@ -1369,8 +1601,17 @@ class RespFileEditor(ResponseEditor):
 
     def move_deleted_file(self):
         """
-        Move the file to the 'deleted' directory
-        and rename it to its hash.
+        Move the file of a deleted response to the
+        designated directory for deleted files.
+
+        from:
+
+            UPLOAD_DIRECTORY/<FOIL-ID>/
+
+        to:
+
+            UPLOAD_DIRECTORY/deleted/<response-ID>/
+
         """
         upload_path = os.path.join(
             current_app.config['UPLOAD_DIRECTORY'],
@@ -1378,10 +1619,11 @@ class RespFileEditor(ResponseEditor):
         )
         dir_deleted = os.path.join(
             upload_path,
-            DELETED_FILE_DIRNAME
+            DELETED_FILE_DIRNAME,
+            str(self.response.id)
         )
         if not fu.exists(dir_deleted):
-            fu.mkdir(dir_deleted)
+            fu.makedirs(dir_deleted)
         fu.rename(
             os.path.join(
                 upload_path,
@@ -1389,7 +1631,7 @@ class RespFileEditor(ResponseEditor):
             ),
             os.path.join(
                 dir_deleted,
-                self.response.hash
+                self.response.name
             )
         )
 

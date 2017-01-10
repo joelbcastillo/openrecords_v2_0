@@ -10,7 +10,8 @@
     <div id="container-fluid">
         <div class="col-sm-10 col-sm-push-1">
             <form method="post" class="form" role="form" id="request-form" enctype=multipart/form-data data-parsley-validate>
-                {{ form.hidden_tag() }}
+                {{ form.csrf_token }}
+
                 <h1>Request a Record (Logged in Agency User)</h1>
 
                 <p>Please make your request specific so you receive the fastest service. After you submit a FOIL request
@@ -19,15 +20,8 @@
                     notify
                     you about how much time is required to
                     respond to your request.</p>
-                {# Categories to filter out agencies #}
-                {{ form.request_category.label(class='request-heading') }}
-                <span data-toggle="popover" data-placement="right" data-trigger="hover" title="Category Field"
-                      data-content="Selecting a category helps clarify which agency will receive the request"
-                      class="glyphicon glyphicon-question-sign">
-                </span>
-                {{ form.request_category(id='request-category', class='input-block-level') }}<br>
                 {# Title of the request #}
-                {{ form.request_title.label(class='request-heading') }}
+                {{ form.request_title.label(class='request-heading title-label') }}
                 <span data-toggle="popover" data-placement="right" data-trigger="hover" title="Title Field"
                      data-content="Enter a brief title for your request, title will be made public and limited to 90 characters."
                      class="glyphicon glyphicon-question-sign">
@@ -36,13 +30,15 @@
                         placeholder='Please provide a short summary of your request.', maxlength="90") }}
                 <h5 id="title-character-count">90 characters remaining</h5>
                 <div class="alert alert-info">
-                    <p><b>Note: The agency, category, and topic of your request will be visible to the public. Do not
-                            enter personal information here.</b></p>
+                    <p><strong>
+                        Note: The title of this request will be visible to the public.
+                        Do not enter personal information here.
+                    </strong></p>
                 </div>
                 {# Description of the request #}
-                {{ form.request_description.label(class='request-heading') }}
+                {{ form.request_description.label(class='request-heading description-label') }}
                 <span data-toggle="popover" data-placement="right" data-trigger="hover" title="Description Field"
-                     data-content="Enter a detailed description of the request"
+                     data-content="Enter a detailed description of the request."
                      class="glyphicon glyphicon-question-sign">
                 </span>
                 {{ form.request_description(id='request-description', class='input-block-level',
@@ -50,7 +46,8 @@
                         maxlength="5000") }}
                 <h5 id="description-character-count">5000 characters remaining</h5>
                 <div class="alert alert-info">
-                    <p><b>Note: The request details you write here will not be visible to the public. However, the agency may post a description of the records provided.</b></p>
+                    <p><b>Note: The request details written here will not be visible to the public.
+                        However, your agency may post a description of the records provided.</b></p>
                 </div>
 
                 {# Upload field for user to add files #}
@@ -58,11 +55,11 @@
                     {{ form.request_file.label(class='request-heading') }}
                     &nbsp;<span class="request-heading">(Must be less than 20 Mb)</span>
                     <br>
+                    <div class="alert alert-danger file-error" hidden></div>
                     <label class="btn btn-info">Choose File
                         {{ form.request_file(id='request-file', style="display:none") }}
                     </label>
                     <button type="button" id="clear-file" class="btn btn-danger pull-right">Clear File</button>
-                    <div class="file-error"></div>
                     <div id="filename"></div>
                     {% if form.request_file.errors %}
                         {% for error in form.request_file.errors %}
@@ -76,7 +73,9 @@
                     Receipt Information
                 </div>
                 {# Format of request received #}
-                Format Received (required)
+                <div class="format-label">
+                    Format Received (required)
+                </div>
                 {{ form.method_received(id='method-received', class='input-block-level') }}
                 {# Date request was received #}
                 Request Date (required)
@@ -92,22 +91,22 @@
                 <p>This information will not be publicly viewable on this site. You must provide contact
                     information so that the agency can respond to your request for records.</p>
                 {# First name of user #}
-                {{ form.first_name.label(class='request-heading') }}
+                {{ form.first_name.label(class='request-heading first-name-label') }}
                 {{ form.first_name(id='first-name', class='input-block-level',
                 placeholder='John') }}<br>
                 {# Last name of user #}
-                {{ form.last_name.label(class='request-heading') }}
+                {{ form.last_name.label(class='request-heading last-name-label') }}
                 {{ form.last_name(id='last-name', class='input-block-level',
                 placeholder='Doe') }}<br>
                 {# Email of user #}
-                {{ form.email.label(class='request-heading') }}
+                {{ form.email.label(class='request-heading email-label') }}
                 {{ form.email(id='email', class='input-block-level',
-                placeholder='requester@email.com') }}<br>
+                placeholder='requester@email.com', maxlength='254') }}<br>
 
                 <div class="contact-form-error-message"></div>
                 <h1>Alternate Contact Information
                     <small data-toggle="popover" data-placement="right" data-trigger="hover" title="Alternate Contact Information"
-                           data-content="Fields are included in case alternate contact method is needed">
+                           data-content="Fields are included in case alternate contact method is needed.">
                         <span class="glyphicon glyphicon-question-sign"></span>
                     </small>
                 </h1>

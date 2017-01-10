@@ -3,6 +3,8 @@ Models for OpenRecords database
 """
 import csv
 from datetime import datetime
+from operator import ior
+from functools import reduce
 from uuid import uuid4
 
 from flask import current_app
@@ -51,53 +53,81 @@ class Roles(db.Model):
         """
         roles = {
             role_name.ANONYMOUS: (
-                permission.DUPLICATE_REQUEST |
-                permission.VIEW_REQUEST_STATUS_PUBLIC |
-                permission.VIEW_REQUEST_INFO_PUBLIC
-            ),
-            role_name.PUBLIC_NON_REQUESTER: (
-                permission.DUPLICATE_REQUEST |
-                permission.VIEW_REQUEST_STATUS_PUBLIC |
-                permission.VIEW_REQUEST_INFO_PUBLIC
+                permission.NONE
             ),
             role_name.PUBLIC_REQUESTER: (
-                permission.ADD_NOTE |
-                permission.UPLOAD_DOCUMENTS |
-                permission.VIEW_DOCUMENTS_IMMEDIATELY |
-                permission.VIEW_REQUEST_INFO_ALL |
-                permission.VIEW_REQUEST_STATUS_PUBLIC
+                permission.ADD_NOTE
             ),
             role_name.AGENCY_HELPER: (
                 permission.ADD_NOTE |
-                permission.UPLOAD_DOCUMENTS |
-                permission.VIEW_REQUESTS_HELPER |
-                permission.VIEW_REQUEST_INFO_ALL |
-                permission.VIEW_REQUEST_STATUS_ALL
+                permission.ADD_FILE |
+                permission.ADD_LINK |
+                permission.ADD_OFFLINE_INSTRUCTIONS
             ),
             role_name.AGENCY_OFFICER: (
-                permission.ADD_NOTE |
-                permission.UPLOAD_DOCUMENTS |
-                permission.EXTEND_REQUESTS |
-                permission.CLOSE_REQUESTS |
-                permission.ADD_HELPERS |
-                permission.REMOVE_HELPERS |
                 permission.ACKNOWLEDGE |
-                permission.VIEW_REQUESTS_AGENCY |
-                permission.VIEW_REQUEST_INFO_ALL |
-                permission.VIEW_REQUEST_STATUS_ALL
+                permission.DENY |
+                permission.EXTEND |
+                permission.CLOSE |
+                permission.RE_OPEN |
+                permission.ADD_NOTE |
+                permission.ADD_FILE |
+                permission.ADD_LINK |
+                permission.ADD_OFFLINE_INSTRUCTIONS |
+                permission.EDIT_NOTE |
+                permission.EDIT_NOTE_PRIVACY |
+                permission.EDIT_FILE |
+                permission.EDIT_FILE_PRIVACY |
+                permission.EDIT_LINK |
+                permission.EDIT_LINK_PRIVACY |
+                permission.EDIT_OFFLINE_INSTRUCTIONS |
+                permission.EDIT_OFFLINE_INSTRUCTIONS_PRIVACY |
+                permission.EDIT_OFFLINE_INSTRUCTIONS |
+                permission.EDIT_FILE_PRIVACY |
+                permission.DELETE_NOTE |
+                permission.DELETE_FILE |
+                permission.DELETE_LINK |
+                permission.DELETE_OFFLINE_INSTRUCTIONS |
+                permission.EDIT_TITLE |
+                permission.CHANGE_PRIVACY_TITLE |
+                permission.EDIT_AGENCY_DESCRIPTION |
+                permission.CHANGE_PRIVACY_AGENCY_DESCRIPTION |
+                permission.EDIT_REQUESTER_INFO
             ),
             role_name.AGENCY_ADMIN: (
-                permission.ADD_NOTE |
-                permission.UPLOAD_DOCUMENTS |
-                permission.EXTEND_REQUESTS |
-                permission.CLOSE_REQUESTS |
-                permission.ADD_HELPERS |
-                permission.REMOVE_HELPERS |
                 permission.ACKNOWLEDGE |
-                permission.CHANGE_REQUEST_POC |
-                permission.VIEW_REQUESTS_ALL |
-                permission.VIEW_REQUEST_INFO_ALL |
-                permission.VIEW_REQUEST_STATUS_ALL
+                permission.DENY |
+                permission.EXTEND |
+                permission.CLOSE |
+                permission.RE_OPEN |
+                permission.ADD_NOTE |
+                permission.ADD_FILE |
+                permission.ADD_LINK |
+                permission.ADD_OFFLINE_INSTRUCTIONS |
+                permission.EDIT_NOTE |
+                permission.EDIT_NOTE_PRIVACY |
+                permission.EDIT_FILE |
+                permission.EDIT_FILE_PRIVACY |
+                permission.EDIT_LINK |
+                permission.EDIT_LINK_PRIVACY |
+                permission.EDIT_OFFLINE_INSTRUCTIONS |
+                permission.EDIT_OFFLINE_INSTRUCTIONS_PRIVACY |
+                permission.EDIT_FILE_PRIVACY |
+                permission.EDIT_TITLE |
+                permission.DELETE_NOTE |
+                permission.DELETE_FILE |
+                permission.DELETE_LINK |
+                permission.DELETE_OFFLINE_INSTRUCTIONS |
+                permission.CHANGE_PRIVACY_TITLE |
+                permission.EDIT_AGENCY_DESCRIPTION |
+                permission.CHANGE_PRIVACY_AGENCY_DESCRIPTION |
+                permission.ADD_USER_TO_REQUEST |
+                permission.REMOVE_USER_FROM_REQUEST |
+                permission.EDIT_USER_REQUEST_PERMISSIONS |
+                permission.ADD_USER_TO_AGENCY |
+                permission.REMOVE_USER_FROM_AGENCY |
+                permission.CHANGE_USER_ADMIN_PRIVILEGE |
+                permission.EDIT_REQUESTER_INFO
             )
         }
 
@@ -127,12 +157,14 @@ class Agencies(db.Model):
     administrators - an array of user id strings that identify default admins for an agencies requests
     """
     __tablename__ = 'agencies'
-    ein = db.Column(db.Integer, primary_key=True)  # FIXME: add length 3 if possible
+    ein = db.Column(db.String(4), primary_key=True)
+    parent_ein = db.Column(db.String(3))
     categories = db.Column(ARRAY(db.String(256)))
     name = db.Column(db.String(256), nullable=False)
     next_request_number = db.Column(db.Integer(), db.Sequence('request_seq'))
     default_email = db.Column(db.String(254))
     appeals_email = db.Column(db.String(254))
+    is_active = db.Column(db.Boolean(), default=False)
 
     administrators = db.relationship(
         'Users',
@@ -168,11 +200,13 @@ class Agencies(db.Model):
             for row in dictreader:
                 agency = cls(
                     ein=row['ein'],
+                    parent_ein=row['parent_ein'],
                     categories=row['categories'].split(','),
                     name=row['name'],
                     next_request_number=row['next_request_number'],
                     default_email=row['default_email'],
-                    appeals_email=row['appeals_email']
+                    appeals_email=row['appeals_email'],
+                    is_active=eval(row['is_active'])
                 )
                 db.session.add(agency)
             db.session.commit()
@@ -205,6 +239,7 @@ class Users(UserMixin, db.Model):
     guid = db.Column(db.String(64), primary_key=True)  # guid + auth_user_type
     auth_user_type = db.Column(
         db.Enum(user_type_auth.AGENCY_USER,
+                user_type_auth.AGENCY_LDAP_USER,
                 user_type_auth.PUBLIC_USER_FACEBOOK,
                 user_type_auth.PUBLIC_USER_MICROSOFT,
                 user_type_auth.PUBLIC_USER_YAHOO,
@@ -214,7 +249,8 @@ class Users(UserMixin, db.Model):
                 user_type_auth.ANONYMOUS_USER,
                 name='auth_user_type'),
         primary_key=True)
-    agency_ein = db.Column(db.Integer, db.ForeignKey('agencies.ein'))
+    agency_ein = db.Column(db.String(4), db.ForeignKey('agencies.ein'))
+    is_super = db.Column(db.Boolean, nullable=False, default=False)
     is_agency_admin = db.Column(db.Boolean, nullable=False, default=False)
     is_agency_active = db.Column(db.Boolean, nullable=False, default=False)
     first_name = db.Column(db.String(32), nullable=False)
@@ -222,14 +258,15 @@ class Users(UserMixin, db.Model):
     last_name = db.Column(db.String(64), nullable=False)
     email = db.Column(db.String(254))
     email_validated = db.Column(db.Boolean(), nullable=False)
-    terms_of_use_accepted = db.Column(db.String(16))
+    terms_of_use_accepted = db.Column(db.Boolean)
     title = db.Column(db.String(64))
     organization = db.Column(db.String(128))  # Outside organization
     phone_number = db.Column(db.String(15))
     fax_number = db.Column(db.String(15))
     mailing_address = db.Column(JSON)  # TODO: define validation for minimum acceptable mailing address
-    user_requests = db.relationship("UserRequests", backref="user")
 
+    # Relationships
+    user_requests = db.relationship("UserRequests", backref="user", lazy='dynamic')
     agency = db.relationship('Agencies', backref='users')
 
     @property
@@ -265,7 +302,7 @@ class Users(UserMixin, db.Model):
 
         :return: Boolean
         """
-        return self.auth_user_type == user_type_auth.AGENCY_USER
+        return self.auth_user_type in user_type_auth.AGENCY_USER_TYPES
 
     @property
     def is_anonymous_requester(self):
@@ -279,6 +316,16 @@ class Users(UserMixin, db.Model):
         """
         return self.auth_user_type == user_type_auth.ANONYMOUS_USER
 
+    @property
+    def anonymous_request(self):
+        """
+        Returns the request this user is associated with
+        if this user is an anonymous requester.
+        """
+        if self.is_anonymous_requester:
+            return Requests.query.filter_by(id=self.user_requests.one().request_id).one()
+        return None
+
     def get_id(self):  # FIXME: should not be getter
         return USER_ID_DELIMITER.join((self.guid, self.auth_user_type))
 
@@ -288,7 +335,7 @@ class Users(UserMixin, db.Model):
 
     @property
     def name(self):
-        return ' '.join((self.first_name, self.last_name))
+        return ' '.join((self.first_name.title(), self.last_name.title()))
 
     def es_update(self):
         """
@@ -297,6 +344,52 @@ class Users(UserMixin, db.Model):
         """
         for request in self.requests:
             request.es_update()
+
+    @property
+    def val_for_events(self):
+        """
+        JSON to store in Events 'new_value' field.
+        """
+        return {
+            "guid": self.guid,
+            "auth_user_type": self.auth_user_type,
+            "email": self.email,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "title": self.title,
+            "organization": self.organization,
+            "phone_number": self.phone_number,
+            "fax_number": self.fax_number,
+            "mailing_address": self.mailing_address,
+            "email_validated": self.email_validated,
+            "terms_of_use_accepted": self.terms_of_use_accepted,
+        }
+
+    @classmethod
+    def populate(cls):
+        with open(current_app.config['STAFF_DATA'], 'r') as data:
+            dictreader = csv.DictReader(data)
+
+            for row in dictreader:
+                user = cls(
+                    guid=str(uuid4()),
+                    auth_user_type=user_type_auth.AGENCY_LDAP_USER if current_app.config['USE_LDAP'] else user_type_auth.AGENCY_USER,
+                    agency_ein=row['agency_ein'],
+                    is_super=eval(row['is_super']),
+                    is_agency_admin=eval(row['is_agency_admin']),
+                    is_agency_active=eval(row['is_agency_active']),
+                    first_name=row['first_name'],
+                    middle_initial=row['middle_initial'],
+                    last_name=row['last_name'],
+                    email=row['email'],
+                    email_validated=eval(row['email_validated']),
+                    terms_of_use_accepted=eval(row['terms_of_use_accepted']),
+                    phone_number=row['phone_number'],
+                    fax_number=row['fax_number']
+                )
+                db.session.add(user)
+            db.session.commit()
+
 
     def __init__(self, **kwargs):
         super(Users, self).__init__(**kwargs)
@@ -361,7 +454,7 @@ class Requests(db.Model):
     """
     __tablename__ = 'requests'
     id = db.Column(db.String(19), primary_key=True)
-    agency_ein = db.Column(db.Integer, db.ForeignKey('agencies.ein'))
+    agency_ein = db.Column(db.String(4), db.ForeignKey('agencies.ein'))
     category = db.Column(db.String, default='All', nullable=False)
     title = db.Column(db.String(90))
     description = db.Column(db.String(5000))
@@ -390,8 +483,8 @@ class Requests(db.Model):
     agency_description = db.Column(db.String(5000))
     agency_description_release_date = db.Column(db.DateTime)
 
-    user_requests = db.relationship('UserRequests', backref='request', lazy='dynamic')
-    agency = db.relationship('Agencies', backref=db.backref('request', uselist=False))
+    user_requests = db.relationship('UserRequests', backref=db.backref('request', uselist=False), lazy='dynamic')
+    agency = db.relationship('Agencies', backref='requests', uselist=False)
     responses = db.relationship('Responses', backref=db.backref('request', uselist=False), lazy='dynamic')
     requester = db.relationship(
         'Users',
@@ -399,8 +492,7 @@ class Requests(db.Model):
         primaryjoin=lambda: Requests.id == UserRequests.request_id,
         secondaryjoin="and_(Users.guid == UserRequests.user_guid, "
                       "Users.auth_user_type == UserRequests.auth_user_type,"
-                      "UserRequests.request_user_type == '{}')".format(
-                          user_type_request.REQUESTER),
+                      "UserRequests.request_user_type == '{}')".format(user_type_request.REQUESTER),
         backref="requests",
         viewonly=True,
         uselist=False
@@ -412,8 +504,7 @@ class Requests(db.Model):
         primaryjoin=lambda: Requests.id == UserRequests.request_id,
         secondaryjoin="and_(Users.guid == UserRequests.user_guid, "
                       "Users.auth_user_type == UserRequests.auth_user_type, "
-                      "UserRequests.request_user_type == '{}')".format(
-                           user_type_request.AGENCY),
+                      "UserRequests.request_user_type == '{}')".format(user_type_request.AGENCY),
         viewonly=True
     )
 
@@ -426,7 +517,7 @@ class Requests(db.Model):
             description,
             agency_ein,
             date_created,
-            category,
+            category=None,
             privacy=None,
             date_submitted=None,  # FIXME: are some of these really nullable?
             due_date=None,
@@ -479,7 +570,6 @@ class Requests(db.Model):
                     'title_private': self.privacy['title'],
                     'agency_description_private': self.privacy['agency_description'],
                     'date_due': self.due_date.strftime(ES_DATETIME_FORMAT),
-                    'submission': self.submission,  # TODO: does this ever change?
                     'status': self.status,
                     'requester_name': self.requester.name,
                     'public_title': 'Private' if self.privacy['title'] else self.title
@@ -536,9 +626,10 @@ class Events(db.Model):
     __tablename__ = 'events'
     id = db.Column(db.Integer, primary_key=True)
     request_id = db.Column(db.String(19), db.ForeignKey('requests.id'))
-    user_id = db.Column(db.String(64))  # who did the action
+    user_guid = db.Column(db.String(64))  # who did the action
     auth_user_type = db.Column(
         db.Enum(user_type_auth.AGENCY_USER,
+                user_type_auth.AGENCY_LDAP_USER,
                 user_type_auth.PUBLIC_USER_FACEBOOK,
                 user_type_auth.PUBLIC_USER_MICROSOFT,
                 user_type_auth.PUBLIC_USER_YAHOO,
@@ -555,14 +646,14 @@ class Events(db.Model):
 
     __table_args__ = (
         db.ForeignKeyConstraint(
-            [user_id, auth_user_type],
+            [user_guid, auth_user_type],
             [Users.guid, Users.auth_user_type]
         ),
     )
 
     def __init__(self,
                  request_id,
-                 user_id,
+                 user_guid,
                  auth_user_type,
                  type_,
                  previous_value=None,
@@ -570,7 +661,7 @@ class Events(db.Model):
                  response_id=None,
                  timestamp=None):
         self.request_id = request_id
-        self.user_id = user_id
+        self.user_guid = user_guid
         self.auth_user_type = auth_user_type
         self.response_id = response_id
         self.type = type_
@@ -604,6 +695,7 @@ class Responses(db.Model):
     date_modified = db.Column(db.DateTime)
     release_date = db.Column(db.DateTime)
     deleted = db.Column(db.Boolean, default=False, nullable=False)
+    is_editable = db.Column(db.Boolean, default=False, nullable=False)
     type = db.Column(db.Enum(
         response_type.NOTE,
         response_type.LINK,
@@ -620,13 +712,15 @@ class Responses(db.Model):
     def __init__(self,
                  request_id,
                  privacy,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         self.request_id = request_id
         self.privacy = privacy
         self.date_modified = date_modified or datetime.utcnow()
         self.release_date = (calendar.addbusdays(datetime.utcnow(), RELEASE_PUBLIC_DAYS)
                              if privacy == response_privacy.RELEASE_AND_PUBLIC
                              else None)
+        self.is_editable = is_editable
 
     # NOTE: If you can find a way to make this class work with abc,
     # you're welcome to make the necessary changes to the following method:
@@ -641,7 +735,7 @@ class Responses(db.Model):
         val = {
             c.name: getattr(self, c.name)
             for c in self.__table__.columns
-        }
+            }
         val.pop('id')
         val['privacy'] = self.privacy
         return val
@@ -670,7 +764,8 @@ class Reasons(db.Model):
         determination_type.DENIAL,
         name="reason_type"
     ), nullable=False)
-    agency_ein = db.Column(db.Integer, db.ForeignKey('agencies.ein'))
+    agency_ein = db.Column(db.String(4), db.ForeignKey('agencies.ein'))
+    title = db.Column(db.String, nullable=False)
     content = db.Column(db.String, nullable=False)
 
     @classmethod
@@ -681,6 +776,7 @@ class Reasons(db.Model):
             for row in dictreader:
                 reason = cls(
                     type=row['type'],
+                    title=row['title'],
                     content=row['content']
                 )
                 db.session.add(reason)
@@ -705,6 +801,7 @@ class UserRequests(db.Model):
     user_guid = db.Column(db.String(64), primary_key=True)
     auth_user_type = db.Column(
         db.Enum(user_type_auth.AGENCY_USER,
+                user_type_auth.AGENCY_LDAP_USER,
                 user_type_auth.PUBLIC_USER_FACEBOOK,
                 user_type_auth.PUBLIC_USER_MICROSOFT,
                 user_type_auth.PUBLIC_USER_YAHOO,
@@ -719,7 +816,7 @@ class UserRequests(db.Model):
         db.Enum(user_type_request.REQUESTER,
                 user_type_request.AGENCY,
                 name='request_user_type'))
-    permissions = db.Column(db.Integer)
+    permissions = db.Column(db.BigInteger)
     # Note: If an anonymous user creates a request, they will be listed in the UserRequests table, but will have the
     # same permissions as an anonymous user browsing a request since there is no method for authenticating that the
     # current anonymous user is in fact the requester.
@@ -731,12 +828,52 @@ class UserRequests(db.Model):
         ),
     )
 
-    def has_permission(self, permission):
+    @property
+    def val_for_events(self):
+        """
+        JSON to store in Events 'new_value' field.
+        """
+        return {
+            "user_guid": self.user_guid,
+            "auth_user_type": self.auth_user_type,
+            "request_user_type": self.request_user_type,
+            "permissions": self.permissions
+        }
+
+    def has_permission(self, perm):
         """
         Ex:
             has_permission(permission.ADD_NOTE)
         """
-        return bool(self.permissions & permission)
+        return bool(self.permissions & perm)
+
+    def add_permissions(self, permissions):
+        """
+        :param permissions: list of permissions from app.constants.permissions
+        """
+        self.permissions |= reduce(ior, permissions)
+        db.session.commit()
+
+    def remove_permissions(self, permissions):
+        """
+        :param permissions: list of permissions from app.constants.permissions
+        """
+        self.permissions &= ~reduce(ior, permissions)
+        db.session.commit()
+
+    def set_permissions(self, permissions):
+        """
+        :param permissions: list of permissions from app.constants.permissions
+                            or a permissions bitmask
+        """
+        if isinstance(permissions, list):
+            self.permissions = reduce(ior, permissions)
+        else:
+            self.permissions = permissions
+        db.session.commit()
+
+    def get_permissions(self):
+        return [i for i, p in enumerate(permission.ALL) if bool(self.permissions & p.value)]
 
 
 class ResponseTokens(db.Model):
@@ -780,15 +917,18 @@ class Notes(Responses):
     __mapper_args__ = {'polymorphic_identity': response_type.NOTE}
     id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
     content = db.Column(db.String(5000))
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
                  privacy,
                  content,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Notes, self).__init__(request_id,
                                     privacy,
-                                    date_modified)
+                                    date_modified,
+                                    is_editable)
         self.content = content
 
     @property
@@ -815,6 +955,7 @@ class Files(Responses):
     mime_type = db.Column(db.String)
     size = db.Column(db.Integer)
     hash = db.Column(db.String)
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
@@ -824,10 +965,12 @@ class Files(Responses):
                  mime_type,
                  size,
                  hash_,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Files, self).__init__(request_id,
                                     privacy,
-                                    date_modified)
+                                    date_modified,
+                                    is_editable)
         self.name = name
         self.mime_type = mime_type
         self.title = title
@@ -852,16 +995,19 @@ class Links(Responses):
     id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
     title = db.Column(db.String)
     url = db.Column(db.String)
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
                  privacy,
                  title,
                  url,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Links, self).__init__(request_id,
                                     privacy,
-                                    date_modified)
+                                    date_modified,
+                                    is_editable)
         self.title = title
         self.url = url
 
@@ -881,15 +1027,18 @@ class Instructions(Responses):
     __mapper_args__ = {'polymorphic_identity': response_type.INSTRUCTIONS}
     id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
     content = db.Column(db.String)
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
                  privacy,
                  content,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Instructions, self).__init__(request_id,
                                            privacy,
-                                           date_modified)
+                                           date_modified,
+                                           is_editable)
         self.content = content
 
     @property
@@ -928,6 +1077,7 @@ class Determinations(Responses):
     ), nullable=False)
     reason = db.Column(db.String)  # nullable only for acknowledge and re-opening
     date = db.Column(db.DateTime)  # nullable only for denial, closing
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
@@ -935,10 +1085,12 @@ class Determinations(Responses):
                  dtype,
                  reason,
                  date=None,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Determinations, self).__init__(request_id,
                                              privacy,
-                                             date_modified)
+                                             date_modified,
+                                             is_editable)
         self.dtype = dtype
 
         if dtype not in (determination_type.ACKNOWLEDGMENT,
@@ -986,6 +1138,7 @@ class Emails(Responses):
     bcc = db.Column(db.String)
     subject = db.Column(db.String(5000))
     body = db.Column(db.String)
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
@@ -995,10 +1148,12 @@ class Emails(Responses):
                  bcc,
                  subject,
                  body,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Emails, self).__init__(request_id,
                                      privacy,
-                                     date_modified)
+                                     date_modified,
+                                     is_editable)
         self.to = to
         self.cc = cc
         self.bcc = bcc

@@ -42,6 +42,7 @@ $(function () {
                         "#fileupload-update-" + responses[i].id,
                         request_id,
                         true,
+                        responses[i].id,
                         "template-upload-update",
                         "template-download-update",
                         $("#response-modal-" + responses[i].id).find(
@@ -52,7 +53,7 @@ $(function () {
             flask_moment_render_all();
         }
         else {
-            response_list.text("None");
+            response_list.text("");
         }
     }
 
@@ -98,7 +99,6 @@ $(function () {
     // TODO: DELETE 'updated' on modal close and reset / refresh page (wait until all responses ready)
 
     function setEditResponseWorkflow(response_id, response_type) {
-        // FIXME: if response_type does not need email workflow, some of these elements won't be found!
 
         var responseModal = $("#response-modal-" + response_id);
 
@@ -122,7 +122,8 @@ $(function () {
             editor_selector: "tinymce-area",
             elementpath: false,
             convert_urls: false,
-            height: 180
+            height: 180,
+            plugins: ["noneditable","preventdelete"]
         });
 
         switch (response_type) {
@@ -199,8 +200,7 @@ $(function () {
                             response_id: response_id,
                             title: first.find("input[name=title]").val(),
                             privacy: first.find("input[name=privacy]:checked").val(),
-                            filename: first.find(".secured-name").length > 0 ? first.find(".secured-name").text() :
-                                null,
+                            filename: first.find(".secured-name").length > 0 ? first.find(".secured-name").text() : null,
                             confirmation: true,
                             email_content: $("#email-content-" + response_id).val()
                         },
@@ -258,7 +258,7 @@ $(function () {
                                 type: "edit",
                                 response_id: response_id,
                                 content: first.find(".note-content").val(),
-                                privacy: first.find("input[name=privacy]:checked").val(),
+                                privacy: first.find("input[name=privacy]:checked").val()
                             },
                             success: function (data) {
                                 if (data.error) {

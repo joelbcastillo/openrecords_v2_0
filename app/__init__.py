@@ -1,17 +1,21 @@
+import atexit
 from datetime import date
 
 import redis
 from business_calendar import Calendar, MO, TU, WE, TH, FR
 from celery import Celery
-from flask import Flask
+from flask import Flask, render_template
+from flask_apscheduler import APScheduler
 from flask_bootstrap import Bootstrap
-from flask_moment import Moment
-from flask_kvsession import KVSessionExtension
 from flask_elasticsearch import FlaskElasticsearch
+from flask_kvsession import KVSessionExtension
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_moment import Moment
 from flask_recaptcha import ReCaptcha
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import CsrfProtect
+from apscheduler.triggers.interval import IntervalTrigger
 from simplekv.decorator import PrefixDecorator
 from simplekv.memory.redisstore import RedisStore
 from app.lib import NYCHolidays, jinja_filters
@@ -22,9 +26,11 @@ recaptcha = ReCaptcha()
 bootstrap = Bootstrap()
 es = FlaskElasticsearch()
 db = SQLAlchemy()
+csrf = CsrfProtect()
 moment = Moment()
 mail = Mail()
 login_manager = LoginManager()
+scheduler = APScheduler()
 store = RedisStore(redis.StrictRedis(db=Config.SESSION_REDIS_DB, host=Config.REDIS_HOST, port=Config.REDIS_PORT))
 prefixed_store = PrefixDecorator('session_', store)
 celery = Celery(__name__, broker=Config.CELERY_BROKER_URL)
@@ -60,10 +66,12 @@ def create_app(config_name):
     bootstrap.init_app(app)
     es.init_app(app, use_ssl=app.config['ELASTICSEARCH_USE_SSL'])
     db.init_app(app)
+    csrf.init_app(app)
     moment.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
     celery.conf.update(app.config)
+    scheduler.init_app(app)
 
     with app.app_context():
         from app.models import Anonymous
@@ -71,6 +79,37 @@ def create_app(config_name):
         login_manager.anonymous_user = Anonymous
         KVSessionExtension(prefixed_store, app)
 
+    # schedule jobs
+    # NOTE: if running with reloader, jobs will execute twice
+    import jobs
+    scheduler.add_job(
+        'update_request_statuses',
+        jobs.update_request_statuses,
+        name="Update requests statuses every day.",
+        trigger=IntervalTrigger(days=1),
+        args=[app]
+    )
+
+    scheduler.start()
+
+    # Error Handlers
+    @app.errorhandler(400)
+    def bad_request(e):
+        return render_template("error/generic.html", status_code=400)
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template("error/generic.html", status_code=403)
+
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template("error/generic.html", status_code=404)
+
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        return render_template("error/generic.html", status_code=500)
+
+    # Register Blueprints
     from .main import main
     app.register_blueprint(main)
 
@@ -83,6 +122,9 @@ def create_app(config_name):
     from .request.api import request_api_blueprint
     app.register_blueprint(request_api_blueprint, url_prefix="/request/api/v1.0")
 
+    from .report import report
+    app.register_blueprint(report, url_prefix="/report")
+
     from .response import response
     app.register_blueprint(response, url_prefix="/response")
 
@@ -92,10 +134,22 @@ def create_app(config_name):
     from .user import user
     app.register_blueprint(user, url_prefix="/user")
 
+    from .agency import agency
+    app.register_blueprint(agency, url_prefix="/agency")
+
     from .search import search
     app.register_blueprint(search, url_prefix="/search")
 
     from .admin import admin
     app.register_blueprint(admin, url_prefix="/admin")
+
+    from .user_request import user_request
+    app.register_blueprint(user_request, url_prefix="/user_request")
+
+    from .permissions import permissions
+    app.register_blueprint(permissions, url_prefix="/permissions/api/v1.0")
+
+    # exit handling
+    atexit.register(lambda: scheduler.shutdown())
 
     return app

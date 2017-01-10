@@ -59,13 +59,13 @@
                 data: {
                     request_id: "{{ request.id }}",
                     type: "closing",
-                    reason_ids: reason_ids.val(),
                     email_content: second.find("#closing-email-body").val(),
                     confirmation: true
                 },
                 success: function(data) {
                     third.find(".email-summary").html(data.template);
                     third.find("input[name=email-summary]").val(data.template);
+                    third.find(".confirmation-header").text(data.header);
                 }
             });
 
@@ -82,9 +82,8 @@
             second.show();
         });
 
-        submit.click(function() {
-            $(this).attr("disabled", true);
-            form.submit();
+        form.submit(function() {
+            submit.attr("disabled", true);
         });
 
     })

@@ -3,7 +3,7 @@ from app.constants import response_type, determination_type
 ACKNOWLEDGMENT_DAYS_DUE = 5
 
 CATEGORIES = [
-    ('', ''),
+    ('', 'All'),
     ('Business', 'Business'),
     ('Civic Services', 'Civic Services'),
     ('Culture & Recreation', 'Culture & Recreation'),
@@ -88,9 +88,14 @@ EMAIL_TEMPLATE_FOR_TYPE = {
     response_type.LINK: "email_response_link.html",
     response_type.NOTE: "email_response_note.html",
     response_type.INSTRUCTIONS: "email_response_instruction.html",
+    response_type.USER_REQUEST_ADDED: "email_user_request_added.html",
+    response_type.USER_REQUEST_EDITED: "email_user_request_edited.html",
+    response_type.USER_REQUEST_REMOVED: "email_user_request_deleted.html",
     determination_type.ACKNOWLEDGMENT: "email_response_acknowledgment.html",
     determination_type.DENIAL: "email_response_denial.html",
     determination_type.CLOSING: "email_response_closing.html",
     determination_type.EXTENSION: "email_response_extension.html",
     determination_type.REOPENING: "email_response_reopening.html"
 }
+
+OPENRECORDS_DL_EMAIL = "openrecords@records.nyc.gov"

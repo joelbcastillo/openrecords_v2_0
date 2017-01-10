@@ -34,12 +34,13 @@
     margin-right:auto;
     padding-left:20px;
     padding-right:20px;
+    padding-bottom: 200px;
 }
 
 @media (max-width: 979px) and (min-width: 768px) {
-    .wrapper
+    .wrapper, .navbar
     {
-        max-width:724px
+        min-width:calc(940px + 20px);
     }
 
 }
@@ -162,4 +163,17 @@ footer{
 
 input[type="radio"], input[type="checkbox"] {
 	width: auto;
+}
+
+.footer-wrapper {
+	margin-top: 50rem;
+}
+
+.col-centered {
+    display:inline-block;
+    float:none;
+    /* reset the text-align */
+    text-align:left;
+    /* inline-block space fix */
+    margin-right:-4px;
 }
