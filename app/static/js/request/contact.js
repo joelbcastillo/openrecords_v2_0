@@ -38,14 +38,14 @@ $(document).ready(function () {
     
     // Set character counter for note content
     name.keyup(function() {
-        characterCounter("#name-character-count", 32, $(this).val().length)
+        characterCounter("#name-character-count", 32, $(this).val().length);
     });
     
     subject.keyup(function() {
-        characterCounter("#subject-character-count", 90, $(this).val().length)
+        characterCounter("#subject-character-count", 90, $(this).val().length);
     });
     
     message.keyup(function() {
-        characterCounter("#message-character-count", 5000, $(this).val().length)
+        characterCounter("#message-character-count", 5000, $(this).val().length);
     });
 });

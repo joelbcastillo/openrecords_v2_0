@@ -71,7 +71,7 @@ $(function () {
             error: function (error) {
                 console.log(error);
             }
-        })
+        });
     }
 
     var nav_buttons = $('#responses-nav-buttons');
@@ -340,7 +340,7 @@ $(function () {
                     "Note content must be less than 500 characters");
 
                 $(first.find(".note-content")).keyup(function () {
-                    characterCounter(first.find(".note-content-character-count"), 500, $(this).val().length)
+                    characterCounter(first.find(".note-content-character-count"), 500, $(this).val().length);
                 });
 
                 break;
@@ -445,7 +445,7 @@ $(function () {
                     "Instruction content must be less than 500 characters");
 
                 $(first.find(".instruction-content")).keyup(function () {
-                    characterCounter(first.find(".instruction-content-character-count"), 500, $(this).val().length)
+                    characterCounter(first.find(".instruction-content-character-count"), 500, $(this).val().length);
                 });
 
                 break;
@@ -564,7 +564,7 @@ $(function () {
 
                 // Set character counter for link url
                 first.find('.url').keyup(function () {
-                    characterCounter(first.find(".link-url-character-count"), 254, $(this).val().length)
+                    characterCounter(first.find(".link-url-character-count"), 254, $(this).val().length);
                 });
 
                 break;
