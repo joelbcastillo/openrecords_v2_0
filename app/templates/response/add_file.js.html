@@ -70,6 +70,7 @@
             // Proceed with next click function if validation fields are valid and no files are uploading
             if (form.parsley().isValid() && (templateUpload.length === 0)) {
                 var filenames = first.find(".secured-name").map( function(){return $(this).text(); }).get();
+                var title = first.find(".title-field").map( function(){return $(this).val(); }).get();
                 var privacy = first.find(".file-privacy:checked").map(function(){return $(this).val(); }).get();
 
                 // Create an array (called files) of objects with keys of filename and privacy
@@ -77,8 +78,8 @@
                 for( var i = 0; i < filenames.length; i++ ) {
                     var file = {};
                     file["filename"] = filenames[i];
+                    file["title"] = title[i];
                     file["privacy"] = privacy[i];
-
                     files.push(file);
                 }
 
@@ -97,10 +98,14 @@
                         request_id: "{{ request.id }}",
                         type: "files",
                         files: JSON.stringify(files),
-                        is_private: is_private
+                        is_private: is_private,
+                        tz_name: jstz.determine().name()
                     },
                     success: function (data) {
-                        tinyMCE.get('email-file-content').setContent(data.template);
+                        emailContent = second.find(".email-file-content-hidden");
+                        emailContent.html(data.template);
+                        flask_moment_render_all();
+                        tinyMCE.get('email-file-content').setContent(emailContent.html());
                         $(".file-confirmation-header").text(data.header);
                     }
                 });
@@ -152,8 +157,9 @@
         submit.click(function() {
             submit.attr("disabled", true);
             var randomString = getRandomString(32, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
-            hiddenEmailDiv.find(".mceNonEditable").html(randomString);
+            hiddenEmailDiv.find(".file-links").html(randomString);
             hiddenEmailDiv.find("p:empty").remove();
+            third.find("input[name='tz_name']").val(jstz.determine().name());
             third.find("#email-file-summary-hidden").val(hiddenEmailDiv.html());
             third.find("input[name='replace-string']").val(randomString);
             form.submit();

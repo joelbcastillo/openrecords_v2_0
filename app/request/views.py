@@ -19,6 +19,7 @@ from flask import (
 )
 from flask_login import current_user
 from sqlalchemy import any_
+from sqlalchemy.orm.exc import NoResultFound
 
 from app.constants import (
     request_status,
@@ -35,6 +36,7 @@ from app.lib.utils import InvalidUserException
 from app.models import (
     Requests,
     Agencies,
+    UserRequests,
 )
 from app.request import request
 from app.request.forms import (
@@ -180,9 +182,14 @@ def view(request_id):
 
     :return: redirect to view request page
     """
-    current_request = Requests.query.filter_by(id=request_id).one()
-
-    if not current_request.agency.is_active:
+    try:
+        current_request = Requests.query.filter_by(id=request_id).one()
+        assert current_request.agency.is_active
+    except NoResultFound:
+        print("Request with id '{}' does not exist.".format(request_id))
+        return abort(404)
+    except AssertionError:
+        print("Request belongs to inactive agency.")
         return abort(404)
 
     holidays = sorted(get_holidays_date_list(
@@ -231,12 +238,16 @@ def view(request_id):
     }
 
     for key, val in permissions.items():
-
-        if current_user.is_anonymous or not current_request.user_requests.filter_by(user_guid=current_user.guid,
-                                                                                    auth_user_type=current_user.auth_user_type).first():
+        if current_user.is_anonymous or not current_request.user_requests.filter_by(
+                user_guid=current_user.guid, auth_user_type=current_user.auth_user_type).first():
             permissions[key] = False
         else:
             permissions[key] = is_allowed(current_user, request_id, val) if not current_user.is_anonymous else False
+
+    assigned_user_permissions = {}
+    for u in assigned_users:
+        assigned_user_permissions[u.guid] = UserRequests.query.filter_by(
+            request_id=request_id, user_guid=u.guid).one().get_permissions()
 
     show_agency_description = False
     if (
@@ -260,6 +271,7 @@ def view(request_id):
         remove_user_request_form=RemoveUserRequestForm(assigned_users),
         add_user_request_form=AddUserRequestForm(active_users),
         edit_user_request_form=EditUserRequestForm(assigned_users),
+        assigned_user_permissions=assigned_user_permissions,
         holidays=holidays,
         assigned_users=assigned_users,
         active_users=active_users,

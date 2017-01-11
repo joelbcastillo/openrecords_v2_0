@@ -9,12 +9,15 @@
 
 <div>
     <form id="contact-info" action="{{ url_for('main.contact') }}" method="POST">
+
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
         <label for="name">Name</label>
         <input id="name" class="form-control" name="name" maxlength="32" type="text">
         <h5 id="name-character-count">32 characters remaining</h5>
         <br>
         <label for="email">Email</label>
-        <input id="email" class="form-control" name="email" type="email">
+        <input id="email" class="form-control" name="email" maxlength="254" type="email">
         <br>
         <label for="subject">Subject</label>
         <input id="subject" class="form-control" name="subject" maxlength="90" type="text">

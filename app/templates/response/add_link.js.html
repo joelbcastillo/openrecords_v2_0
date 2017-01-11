@@ -21,11 +21,16 @@ $(document).ready(function () {
                     type: "links",
                     link: JSON.stringify({
                         url: $('#link-url').val(),
+                        title: $("#link-title").val(),
                         privacy: $('.link-privacy:checked').val()
-                    })
+                    }),
+                    tz_name: jstz.determine().name()
                 },
                 success: function (data) {
-                    tinyMCE.get('email-link-content').setContent(data.template);
+                    emailContent = $(".email-link-content-hidden");
+                    emailContent.html(data.template);
+                    flask_moment_render_all();
+                    tinyMCE.get('email-link-content').setContent(emailContent.html());
                     $(".link-confirmation-header").text(data.header);
                 }
             });

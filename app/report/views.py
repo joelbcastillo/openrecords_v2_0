@@ -49,30 +49,43 @@ def get():
     requests_opened = 0
     requests_closed = 0
     active_users = []
+    show_users = False
     if agency_ein:
         if agency_ein == 'all':
-            requests_closed = len(Requests.query.filter_by(status=request_status.CLOSED).all())
-            requests_opened = len(Requests.query.all()) - requests_closed
-            active_users = []
+            active_requests = Requests.query.with_entities(Requests.status).join(
+                Agencies, Requests.agency_ein == Agencies.ein).filter(
+                Agencies.is_active).all()
+            requests_closed = len([r for r in active_requests if r[0] == request_status.CLOSED])
+            requests_opened = len(active_requests) - requests_closed
         else:
-            requests_closed = len(Requests.query.filter_by(status=request_status.CLOSED, agency_ein=agency_ein).all())
-            requests_opened = len(Requests.query.filter_by(agency_ein=agency_ein).all()) - requests_closed
+            active_requests = Requests.query.with_entities(Requests.status).join(
+                Agencies, Requests.agency_ein == Agencies.ein).filter(
+                Agencies.ein == agency_ein, Agencies.is_active).all()
+            requests_closed = len([r for r in active_requests if r[0] == request_status.CLOSED])
+            requests_opened = len(active_requests) - requests_closed
+            if not (current_user.is_anonymous or current_user.is_public):
+                if (current_user.is_agency and current_user.agency.ein == agency_ein) or current_user.is_super:
+                    if current_user.is_agency_admin or current_user.is_super:
+                        active_users = sorted(
+                            [(user.guid, user.name)
+                             for user in Agencies.query.filter_by(ein=agency_ein).one().active_users],
+                            key=lambda x: x[1])
+                    elif current_user.is_agency_active:
+                        active_users = [(current_user.guid, current_user.name)]
+                    if active_users:
+                        active_users.insert(0, ('', ''))
+                        show_users = True
 
-            active_users = sorted(
-                [(user.guid, user.name)
-                 for user in Agencies.query.filter_by(ein=agency_ein).one().active_users],
-                key=lambda x: x[1])
-            if active_users:
-                active_users.insert(0, ('', ''))
-
-    elif user_guid and current_user.is_agency:
-        ureqs = UserRequests.query.filter_by(user_guid=user_guid,
-                                             auth_user_type=user_type_auth.AGENCY_USER).all()
+    elif user_guid and (current_user.is_agency_active or current_user.is_agency_admin or current_user.is_super):
+        ureqs = UserRequests.query.filter(UserRequests.user_guid == user_guid,
+                                          UserRequests.auth_user_type.in_(user_type_auth.AGENCY_USER_TYPES)
+                                         ).all()
 
         requests_closed = len([u for u in ureqs if u.request.status == request_status.CLOSED])
         requests_opened = len([u for u in ureqs if u.request.status != request_status.CLOSED])
 
     return jsonify({"labels": ["Opened", "Closed"],
                     "values": [requests_opened, requests_closed],
-                    "active_users": active_users
+                    "active_users": active_users,
+                    "show_users": show_users
                     }), 200

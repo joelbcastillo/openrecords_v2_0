@@ -5,16 +5,17 @@ import redis
 from business_calendar import Calendar, MO, TU, WE, TH, FR
 from celery import Celery
 from flask import Flask, render_template
+from flask_apscheduler import APScheduler
 from flask_bootstrap import Bootstrap
-from flask_moment import Moment
-from flask_kvsession import KVSessionExtension
 from flask_elasticsearch import FlaskElasticsearch
+from flask_kvsession import KVSessionExtension
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_moment import Moment
 from flask_recaptcha import ReCaptcha
 from flask_sqlalchemy import SQLAlchemy
-from flask_apscheduler import APScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+from flask_wtf import CsrfProtect
+from apscheduler.triggers.cron import CronTrigger
 from simplekv.decorator import PrefixDecorator
 from simplekv.memory.redisstore import RedisStore
 from app.lib import NYCHolidays, jinja_filters
@@ -25,6 +26,7 @@ recaptcha = ReCaptcha()
 bootstrap = Bootstrap()
 es = FlaskElasticsearch()
 db = SQLAlchemy()
+csrf = CsrfProtect()
 moment = Moment()
 mail = Mail()
 login_manager = LoginManager()
@@ -64,12 +66,12 @@ def create_app(config_name):
     bootstrap.init_app(app)
     es.init_app(app, use_ssl=app.config['ELASTICSEARCH_USE_SSL'])
     db.init_app(app)
+    csrf.init_app(app)
     moment.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
     celery.conf.update(app.config)
-
-    scheduler.start()
+    scheduler.init_app(app)
 
     with app.app_context():
         from app.models import Anonymous
@@ -77,15 +79,17 @@ def create_app(config_name):
         login_manager.anonymous_user = Anonymous
         KVSessionExtension(prefixed_store, app)
 
-        # schedule jobs
-        import jobs
+    # schedule jobs
+    # NOTE: if running with reloader, jobs will execute twice
+    import jobs
+    scheduler.add_job(
+        'update_request_statuses',
+        jobs.update_request_statuses,
+        name="Update requests statuses every day at 3 AM.",
+        trigger=CronTrigger(hour=3),
+    )
 
-        scheduler.add_job(
-            'update_request_statuses',
-            jobs.update_request_statuses,
-            name="Update requests statuses every day.",
-            trigger=IntervalTrigger(days=1)
-        )
+    scheduler.start()
 
     # Error Handlers
     @app.errorhandler(400)

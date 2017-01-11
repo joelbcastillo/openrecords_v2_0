@@ -14,7 +14,16 @@ from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager, Shell, Command
 
 from app import create_app, db
-from app.models import Users, Agencies, Requests, Responses, Events, Reasons, Roles, UserRequests
+from app.models import (
+    Users,
+    Agencies,
+    Requests,
+    Responses,
+    Events,
+    Reasons,
+    Roles,
+    UserRequests
+)
 
 app = create_app(os.getenv('FLASK_CONFIG') or 'default')
 manager = Manager(app)
@@ -101,7 +110,8 @@ def deploy():
     list(map(lambda x: x.populate(), (
         Roles,
         Agencies,
-        Reasons
+        Reasons,
+        Users
     )))
 
     es_recreate()
@@ -132,9 +142,8 @@ def create_search_set():
 @manager.command
 def create_users():
     """Create a user from each of the allowed auth_user_types."""
-    from app.constants.user_type_auth import PUBLIC_USER_TYPES, AGENCY_USER
-    types = [type for type in PUBLIC_USER_TYPES]
-    types.append(AGENCY_USER)
+    from app.constants.user_type_auth import PUBLIC_USER_TYPES
+    types = [type_ for type_ in PUBLIC_USER_TYPES]
 
     from tests.lib.tools import create_user
     for type_ in types:
@@ -185,6 +194,33 @@ def create_user(agency=False,
         user = create_user()
 
     print(user, "created.")
+
+
+@manager.command
+def routes():
+    from flask import url_for
+    from urllib.parse import unquote
+    output = []
+    for rule in app.url_map.iter_rules():
+        options = {}
+        for arg in rule.arguments:
+            if arg == 'year':
+                from datetime import datetime
+                options[arg] = "{}".format(datetime.now().year)
+                continue
+            options[arg] = "[{}]".format(arg)
+
+        methods = ','.join(rule.methods)
+        url = url_for(rule.endpoint, **options)
+        from datetime import datetime
+        if str(datetime.now().year) in url:
+            url = url.replace(str(datetime.now().year), '[year]')
+        line = unquote("{:50} {:20} {}".format(rule.endpoint, methods, url))
+
+        output.append(line)
+
+    for line in sorted(output):
+        print(line)
 
 
 if __name__ == "__main__":

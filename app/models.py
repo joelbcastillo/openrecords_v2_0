@@ -78,6 +78,7 @@ class Roles(db.Model):
                 permission.EDIT_NOTE_PRIVACY |
                 permission.EDIT_FILE |
                 permission.EDIT_FILE_PRIVACY |
+                permission.EDIT_LINK |
                 permission.EDIT_LINK_PRIVACY |
                 permission.EDIT_OFFLINE_INSTRUCTIONS |
                 permission.EDIT_OFFLINE_INSTRUCTIONS_PRIVACY |
@@ -238,6 +239,7 @@ class Users(UserMixin, db.Model):
     guid = db.Column(db.String(64), primary_key=True)  # guid + auth_user_type
     auth_user_type = db.Column(
         db.Enum(user_type_auth.AGENCY_USER,
+                user_type_auth.AGENCY_LDAP_USER,
                 user_type_auth.PUBLIC_USER_FACEBOOK,
                 user_type_auth.PUBLIC_USER_MICROSOFT,
                 user_type_auth.PUBLIC_USER_YAHOO,
@@ -300,7 +302,7 @@ class Users(UserMixin, db.Model):
 
         :return: Boolean
         """
-        return self.auth_user_type == user_type_auth.AGENCY_USER
+        return self.auth_user_type in user_type_auth.AGENCY_USER_TYPES
 
     @property
     def is_anonymous_requester(self):
@@ -362,6 +364,32 @@ class Users(UserMixin, db.Model):
             "email_validated": self.email_validated,
             "terms_of_use_accepted": self.terms_of_use_accepted,
         }
+
+    @classmethod
+    def populate(cls):
+        with open(current_app.config['STAFF_DATA'], 'r') as data:
+            dictreader = csv.DictReader(data)
+
+            for row in dictreader:
+                user = cls(
+                    guid=str(uuid4()),
+                    auth_user_type=user_type_auth.AGENCY_LDAP_USER if current_app.config['USE_LDAP'] else user_type_auth.AGENCY_USER,
+                    agency_ein=row['agency_ein'],
+                    is_super=eval(row['is_super']),
+                    is_agency_admin=eval(row['is_agency_admin']),
+                    is_agency_active=eval(row['is_agency_active']),
+                    first_name=row['first_name'],
+                    middle_initial=row['middle_initial'],
+                    last_name=row['last_name'],
+                    email=row['email'],
+                    email_validated=eval(row['email_validated']),
+                    terms_of_use_accepted=eval(row['terms_of_use_accepted']),
+                    phone_number=row['phone_number'],
+                    fax_number=row['fax_number']
+                )
+                db.session.add(user)
+            db.session.commit()
+
 
     def __init__(self, **kwargs):
         super(Users, self).__init__(**kwargs)
@@ -455,8 +483,8 @@ class Requests(db.Model):
     agency_description = db.Column(db.String(5000))
     agency_description_release_date = db.Column(db.DateTime)
 
-    user_requests = db.relationship('UserRequests', backref='request', lazy='dynamic')
-    agency = db.relationship('Agencies', backref=db.backref('request', uselist=False))
+    user_requests = db.relationship('UserRequests', backref=db.backref('request', uselist=False), lazy='dynamic')
+    agency = db.relationship('Agencies', backref='requests', uselist=False)
     responses = db.relationship('Responses', backref=db.backref('request', uselist=False), lazy='dynamic')
     requester = db.relationship(
         'Users',
@@ -464,8 +492,7 @@ class Requests(db.Model):
         primaryjoin=lambda: Requests.id == UserRequests.request_id,
         secondaryjoin="and_(Users.guid == UserRequests.user_guid, "
                       "Users.auth_user_type == UserRequests.auth_user_type,"
-                      "UserRequests.request_user_type == '{}')".format(
-            user_type_request.REQUESTER),
+                      "UserRequests.request_user_type == '{}')".format(user_type_request.REQUESTER),
         backref="requests",
         viewonly=True,
         uselist=False
@@ -477,8 +504,7 @@ class Requests(db.Model):
         primaryjoin=lambda: Requests.id == UserRequests.request_id,
         secondaryjoin="and_(Users.guid == UserRequests.user_guid, "
                       "Users.auth_user_type == UserRequests.auth_user_type, "
-                      "UserRequests.request_user_type == '{}')".format(
-            user_type_request.AGENCY),
+                      "UserRequests.request_user_type == '{}')".format(user_type_request.AGENCY),
         viewonly=True
     )
 
@@ -603,6 +629,7 @@ class Events(db.Model):
     user_guid = db.Column(db.String(64))  # who did the action
     auth_user_type = db.Column(
         db.Enum(user_type_auth.AGENCY_USER,
+                user_type_auth.AGENCY_LDAP_USER,
                 user_type_auth.PUBLIC_USER_FACEBOOK,
                 user_type_auth.PUBLIC_USER_MICROSOFT,
                 user_type_auth.PUBLIC_USER_YAHOO,
@@ -668,6 +695,7 @@ class Responses(db.Model):
     date_modified = db.Column(db.DateTime)
     release_date = db.Column(db.DateTime)
     deleted = db.Column(db.Boolean, default=False, nullable=False)
+    is_editable = db.Column(db.Boolean, default=False, nullable=False)
     type = db.Column(db.Enum(
         response_type.NOTE,
         response_type.LINK,
@@ -684,13 +712,15 @@ class Responses(db.Model):
     def __init__(self,
                  request_id,
                  privacy,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         self.request_id = request_id
         self.privacy = privacy
         self.date_modified = date_modified or datetime.utcnow()
         self.release_date = (calendar.addbusdays(datetime.utcnow(), RELEASE_PUBLIC_DAYS)
                              if privacy == response_privacy.RELEASE_AND_PUBLIC
                              else None)
+        self.is_editable = is_editable
 
     # NOTE: If you can find a way to make this class work with abc,
     # you're welcome to make the necessary changes to the following method:
@@ -771,6 +801,7 @@ class UserRequests(db.Model):
     user_guid = db.Column(db.String(64), primary_key=True)
     auth_user_type = db.Column(
         db.Enum(user_type_auth.AGENCY_USER,
+                user_type_auth.AGENCY_LDAP_USER,
                 user_type_auth.PUBLIC_USER_FACEBOOK,
                 user_type_auth.PUBLIC_USER_MICROSOFT,
                 user_type_auth.PUBLIC_USER_YAHOO,
@@ -805,7 +836,6 @@ class UserRequests(db.Model):
         return {
             "user_guid": self.user_guid,
             "auth_user_type": self.auth_user_type,
-            "request_id": self.request_id,
             "request_user_type": self.request_user_type,
             "permissions": self.permissions
         }
@@ -830,6 +860,20 @@ class UserRequests(db.Model):
         """
         self.permissions &= ~reduce(ior, permissions)
         db.session.commit()
+
+    def set_permissions(self, permissions):
+        """
+        :param permissions: list of permissions from app.constants.permissions
+                            or a permissions bitmask
+        """
+        if isinstance(permissions, list):
+            self.permissions = reduce(ior, permissions)
+        else:
+            self.permissions = permissions
+        db.session.commit()
+
+    def get_permissions(self):
+        return [i for i, p in enumerate(permission.ALL) if bool(self.permissions & p.value)]
 
 
 class ResponseTokens(db.Model):
@@ -873,15 +917,18 @@ class Notes(Responses):
     __mapper_args__ = {'polymorphic_identity': response_type.NOTE}
     id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
     content = db.Column(db.String(5000))
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
                  privacy,
                  content,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Notes, self).__init__(request_id,
                                     privacy,
-                                    date_modified)
+                                    date_modified,
+                                    is_editable)
         self.content = content
 
     @property
@@ -908,6 +955,7 @@ class Files(Responses):
     mime_type = db.Column(db.String)
     size = db.Column(db.Integer)
     hash = db.Column(db.String)
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
@@ -917,10 +965,12 @@ class Files(Responses):
                  mime_type,
                  size,
                  hash_,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Files, self).__init__(request_id,
                                     privacy,
-                                    date_modified)
+                                    date_modified,
+                                    is_editable)
         self.name = name
         self.mime_type = mime_type
         self.title = title
@@ -945,16 +995,19 @@ class Links(Responses):
     id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
     title = db.Column(db.String)
     url = db.Column(db.String)
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
                  privacy,
                  title,
                  url,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Links, self).__init__(request_id,
                                     privacy,
-                                    date_modified)
+                                    date_modified,
+                                    is_editable)
         self.title = title
         self.url = url
 
@@ -974,15 +1027,18 @@ class Instructions(Responses):
     __mapper_args__ = {'polymorphic_identity': response_type.INSTRUCTIONS}
     id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
     content = db.Column(db.String)
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
                  privacy,
                  content,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Instructions, self).__init__(request_id,
                                            privacy,
-                                           date_modified)
+                                           date_modified,
+                                           is_editable)
         self.content = content
 
     @property
@@ -1021,6 +1077,7 @@ class Determinations(Responses):
     ), nullable=False)
     reason = db.Column(db.String)  # nullable only for acknowledge and re-opening
     date = db.Column(db.DateTime)  # nullable only for denial, closing
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
@@ -1028,10 +1085,12 @@ class Determinations(Responses):
                  dtype,
                  reason,
                  date=None,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Determinations, self).__init__(request_id,
                                              privacy,
-                                             date_modified)
+                                             date_modified,
+                                             is_editable)
         self.dtype = dtype
 
         if dtype not in (determination_type.ACKNOWLEDGMENT,
@@ -1079,6 +1138,7 @@ class Emails(Responses):
     bcc = db.Column(db.String)
     subject = db.Column(db.String(5000))
     body = db.Column(db.String)
+    # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
                  request_id,
@@ -1088,10 +1148,12 @@ class Emails(Responses):
                  bcc,
                  subject,
                  body,
-                 date_modified=None):
+                 date_modified=None,
+                 is_editable=False):
         super(Emails, self).__init__(request_id,
                                      privacy,
-                                     date_modified)
+                                     date_modified,
+                                     is_editable)
         self.to = to
         self.cc = cc
         self.bcc = bcc
