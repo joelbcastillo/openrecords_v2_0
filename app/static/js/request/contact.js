@@ -16,10 +16,10 @@ $(document).ready(function () {
     message.attr("data-parsley-required-message", "This information is required.");
 
     // Specify length requirement of certain fields
-    name.attr('data-parsley-maxlength', 32);
+    name.attr("data-parsley-maxlength", 32);
     email.attr("data-parsley-maxlength", 254);
-    subject.attr('data-parsley-maxlength', 90);
-    message.attr('data-parsley-maxlength', 5000);
+    subject.attr("data-parsley-maxlength", 90);
+    message.attr("data-parsley-maxlength", 5000);
 
     $("#contact-info").parsley().on("form:validate", function () {
         if (name.parsley().isValid() === false) {

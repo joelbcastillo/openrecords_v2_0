@@ -4,11 +4,11 @@ $(function () {
     var index = 0;
     var index_increment = 10;
 
-    var request_id = $.trim($('#request-id').text());
+    var request_id = $.trim($("#request-id").text());
 
     // get first set of responses on page load
     $.ajax({
-        url: '/request/api/v1.0/responses',
+        url: "/request/api/v1.0/responses",
         data: {
             start: 0,
             request_id: request_id,
@@ -17,7 +17,7 @@ $(function () {
         success: function (data) {
             responses = data.responses;
             if (responses.length > index_increment) {
-                $('#responses-nav-buttons').show();
+                $("#responses-nav-buttons").show();
             }
             showResponses();
         },
@@ -27,7 +27,7 @@ $(function () {
     });
 
     function showResponses() {
-        var response_list = $('#request-responses');
+        var response_list = $("#request-responses");
         response_list.empty();
 
         if (responses.length !== 0) {
@@ -59,7 +59,7 @@ $(function () {
 
     function loadMoreResponses() {
         $.ajax({
-            url: '/request/api/v1.0/responses',
+            url: "/request/api/v1.0/responses",
             data: {
                 start: responses.length,
                 request_id: request_id,
@@ -74,10 +74,10 @@ $(function () {
         });
     }
 
-    var nav_buttons = $('#responses-nav-buttons');
+    var nav_buttons = $("#responses-nav-buttons");
 
     // replaces currently displayed responses with previous 10 responses
-    nav_buttons.find('.prev').click(function () {
+    nav_buttons.find(".prev").click(function () {
         if (index !== 0) {
             index -= index_increment;
             showResponses();
@@ -85,7 +85,7 @@ $(function () {
     });
 
     // replaces currently displayed responses with next 10 responses
-    nav_buttons.find('.next').click(function () {
+    nav_buttons.find(".next").click(function () {
         index += index_increment;
         if (index == responses.length - index_increment) {
             loadMoreResponses();
@@ -96,7 +96,7 @@ $(function () {
         showResponses();
     });
 
-    // TODO: DELETE 'updated' on modal close and reset / refresh page (wait until all responses ready)
+    // TODO: DELETE "updated" on modal close and reset / refresh page (wait until all responses ready)
 
     function setEditResponseWorkflow(response_id, response_type) {
 
@@ -118,7 +118,7 @@ $(function () {
             menubar: false,
             // sets tinymce to enable only on specific textareas classes
             mode: "specific_textareas",
-            // selector for tinymce textarea classes is set to 'tinymce-area'
+            // selector for tinymce textarea classes is set to "tinymce-area"
             editor_selector: "tinymce-area",
             elementpath: false,
             convert_urls: false,
@@ -143,7 +143,7 @@ $(function () {
 
                     // Do not proceed if files with error are not removed
                     if (first.find(".upload-error").length > 0 ||
-                        first.find(".error-post-fileupload").is(':visible')) {
+                        first.find(".error-post-fileupload").is(":visible")) {
                         first.find(".fileupload-error-messages").text(
                             "Files with Errors must be removed").show();
                         e.preventDefault();
@@ -212,7 +212,7 @@ $(function () {
                 });
 
                 prev2.click(function () {
-                    first.find('.fileupload-error-messages').hide();
+                    first.find(".fileupload-error-messages").hide();
                     second.hide();
                     first.show();
                 });
@@ -328,15 +328,15 @@ $(function () {
                 });
 
                 // Apply parsley data required validation to note content
-                first.find('.note-content').attr("data-parsley-required", "");
+                first.find(".note-content").attr("data-parsley-required", "");
 
                 // Apply parsley max length validation to note content
-                first.find('.note-content').attr("data-parsley-maxlength", "500");
+                first.find(".note-content").attr("data-parsley-maxlength", "500");
 
                 // Apply custom validation messages
-                first.find('.note-content').attr("data-parsley-required-message",
+                first.find(".note-content").attr("data-parsley-required-message",
                     "Note content must be provided");
-                first.find('.note-content').attr("data-parsley-maxlength-message",
+                first.find(".note-content").attr("data-parsley-maxlength-message",
                     "Note content must be less than 500 characters");
 
                 $(first.find(".note-content")).keyup(function () {
@@ -359,7 +359,7 @@ $(function () {
                                 template_name: "email_edit_response.html",
                                 type: "edit",
                                 response_id: response_id,
-                                content: first.find('.instruction-content').val(),
+                                content: first.find(".instruction-content").val(),
                                 privacy: first.find("input[name=privacy]:checked").val(),
                             },
                             success: function (data) {
@@ -433,15 +433,15 @@ $(function () {
                 });
 
                 // Apply parsley data required validation to instructions content
-                first.find('.instruction-content').attr("data-parsley-required", "");
+                first.find(".instruction-content").attr("data-parsley-required", "");
 
                 // Apply parsley max length validation to instructions content
-                first.find('.instruction-content').attr("data-parsley-maxlength", "500");
+                first.find(".instruction-content").attr("data-parsley-maxlength", "500");
 
                 // Apply custom validation messages
-                first.find('.instruction-content').attr("data-parsley-required-message",
+                first.find(".instruction-content").attr("data-parsley-required-message",
                     "Instruction content must be provided");
-                first.find('.instruction-content').attr("data-parsley-maxlength-message",
+                first.find(".instruction-content").attr("data-parsley-maxlength-message",
                     "Instruction content must be less than 500 characters");
 
                 $(first.find(".instruction-content")).keyup(function () {
@@ -451,7 +451,7 @@ $(function () {
                 break;
 
             case "links":
-                first.find("input[name='url']").on('input', function () {
+                first.find("input[name='url']").on("input", function () {
                     var urlVal = $(this).val();
                     first.find(".edit-link-href").attr("href", urlVal).text(urlVal);
                 });
@@ -549,21 +549,21 @@ $(function () {
                 first.find(".url").attr("data-parsley-required", "254");
 
                 // Apply custom validation messages
-                first.find('.title').attr('data-parsley-required-message', 'Link title must be provided.');
-                first.find('.url').attr('data-parsley-required-message', 'URL link must be provided.');
-                first.find('.title').attr('data-parsley-maxlength-message', 'Link title must be less than 90 characters.');
-                first.find('.url').attr('data-parsley-maxlength-message', 'URL link must be less than 254 characters.');
+                first.find(".title").attr("data-parsley-required-message", "Link title must be provided.");
+                first.find(".url").attr("data-parsley-required-message", "URL link must be provided.");
+                first.find(".title").attr("data-parsley-maxlength-message", "Link title must be less than 90 characters.");
+                first.find(".url").attr("data-parsley-maxlength-message", "URL link must be less than 254 characters.");
 
                 // Custom validator to validate strict url using regexUrlChecker
-                first.find('.url').attr('data-parsley-urlstrict', '');
+                first.find(".url").attr("data-parsley-urlstrict", "");
 
                 // Set character counter for link title
-                first.find('.title').keyup(function () {
+                first.find(".title").keyup(function () {
                     characterCounter(first.find(".link-title-character-count"), 90, $(this).val().length)
                 });
 
                 // Set character counter for link url
-                first.find('.url').keyup(function () {
+                first.find(".url").keyup(function () {
                     characterCounter(first.find(".link-url-character-count"), 254, $(this).val().length);
                 });
 
@@ -582,7 +582,7 @@ $(function () {
         var deleteConfirmCheck = responseModal.find("input[name=delete-confirm-string]");
         var deleteConfirm = responseModal.find(".delete-confirm");
 
-        deleteConfirmCheck.on('paste', function(e) {
+        deleteConfirmCheck.on("paste", function(e) {
             e.preventDefault();
         });
 
@@ -605,7 +605,7 @@ $(function () {
             deleteSection.hide();
             defaultSection.show();
 
-            deleteConfirmCheck.val('');
+            deleteConfirmCheck.val("");
             deleteConfirm.attr("disabled", true);
         });
 

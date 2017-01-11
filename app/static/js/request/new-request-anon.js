@@ -85,12 +85,12 @@ $(document).ready(function () {
     }
 
     // Specify length requirement of certain fields
-    $('#request-title').attr('data-parsley-maxlength', 90);
-    $('#request-description').attr('data-parsley-maxlength', 5000);
+    $("#request-title").attr("data-parsley-maxlength", 90);
+    $("#request-description").attr("data-parsley-maxlength", 5000);
     $("#email").attr("data-parsley-maxlength", 254);
-    $('#phone').attr('data-parsley-length','[14,14]');
-    $('#fax').attr('data-parsley-length','[14,14]');
-    $('#zipcode').attr('data-parsley-length', '[5,5]');
+    $("#phone").attr("data-parsley-length","[14,14]");
+    $("#fax").attr("data-parsley-length","[14,14]");
+    $("#zipcode").attr("data-parsley-length", "[5,5]");
 
     // Custom Validation Messages
     $("#fax").attr("data-parsley-length-message", "The fax number must be 10 digits.");
@@ -196,7 +196,7 @@ $(document).ready(function () {
             $(window).scrollTop($(".title-label").offset().top);
         }
         else if ($("#request-description").parsley().isValid() === false ) {
-            $("#request-description").attr('data-parsley-no-focus', '');
+            $("#request-description").attr("data-parsley-no-focus", "");
             $(window).scrollTop($(".description-label").offset().top);
         }
         else if ($("#request-file").parsley().isValid() === false) {
@@ -229,11 +229,11 @@ $(document).ready(function () {
     });
 
     // Character count for creating a new request
-    $('#request-title').keyup(function () {
+    $("#request-title").keyup(function () {
         characterCounter("#title-character-count", 90, $(this).val().length);
     });
 
-    $('#request-description').keyup(function () {
+    $("#request-description").keyup(function () {
         characterCounter("#description-character-count", 5000, $(this).val().length);
     });
 
