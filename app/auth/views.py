@@ -9,7 +9,6 @@ from flask import (
     redirect,
     session,
     render_template,
-    make_response,
     url_for,
     abort,
     flash
@@ -22,7 +21,7 @@ from flask_login import (
 )
 
 from app.auth import auth
-from app.auth.forms import ManageUserAccountForm, LDAPLoginForm
+from app.auth.forms import LDAPLoginForm
 from app.auth.utils import (
     prepare_flask_request,
     init_saml_auth,
