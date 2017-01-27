@@ -45,7 +45,7 @@ calendar = Calendar(
 )
 
 
-def create_app(config_name):
+def create_app(config_name, jobs_enabled=True):
     """
     Set up the Flask Application context.
 
@@ -71,7 +71,8 @@ def create_app(config_name):
     login_manager.init_app(app)
     mail.init_app(app)
     celery.conf.update(app.config)
-    scheduler.init_app(app)
+    if jobs_enabled:
+        scheduler.init_app(app)
 
     with app.app_context():
         from app.models import Anonymous
@@ -80,16 +81,17 @@ def create_app(config_name):
         KVSessionExtension(prefixed_store, app)
 
     # schedule jobs
-    # NOTE: if running with reloader, jobs will execute twice
-    import jobs
-    scheduler.add_job(
-        'update_request_statuses',
-        jobs.update_request_statuses,
-        name="Update requests statuses every day at 3 AM.",
-        trigger=CronTrigger(hour=3),
-    )
+    if jobs_enabled:
+        # NOTE: if running with reloader, jobs will execute twice
+        import jobs
+        scheduler.add_job(
+            'update_request_statuses',
+            jobs.update_request_statuses,
+            name="Update requests statuses every day at 3 AM.",
+            trigger=CronTrigger(hour=3),
+        )
 
-    scheduler.start()
+        scheduler.start()
 
     # Error Handlers
     @app.errorhandler(400)
@@ -107,6 +109,18 @@ def create_app(config_name):
     @app.errorhandler(500)
     def internal_server_error(e):
         return render_template("error/generic.html", status_code=500)
+
+    @app.context_processor
+    def add_session_config():
+        """Add current_app.permanent_session_lifetime converted to milliseconds
+        to context. The config variable PERMANENT_SESSION_LIFETIME is not
+        used because it could be either a timedelta object or an integer
+        representing seconds.
+        """
+        return {
+            'PERMANENT_SESSION_LIFETIME_MS': (
+                app.permanent_session_lifetime.seconds * 1000),
+        }
 
     # Register Blueprints
     from .main import main
@@ -149,6 +163,7 @@ def create_app(config_name):
     app.register_blueprint(permissions, url_prefix="/permissions/api/v1.0")
 
     # exit handling
-    atexit.register(lambda: scheduler.shutdown())
+    if jobs_enabled:
+        atexit.register(lambda: scheduler.shutdown())
 
     return app

@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 from dotenv import load_dotenv
 
@@ -15,7 +16,12 @@ class Config:
     LOGFILE_DIRECTORY = (os.environ.get('LOGFILE_DIRECTORY') or
                          os.path.join(os.path.abspath(os.path.dirname(__file__)), 'logs/'))
 
-    SERVER_NAME = os.environ.get('SERVER_NAME') or 'localhost:5000'
+    APP_TIMEZONE = os.environ.get('APP_TIMEZONE') or 'US/Eastern'
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE') or True
+
+    # Note: BASE_URL and VIEW_REQUEST_ENDPOINT used for the automatic status update job (jobs.py)
+    BASE_URL = os.environ.get('BASE_URL')
+    VIEW_REQUEST_ENDPOINT = os.environ.get('VIEW_REQUEST_ENDPOINT')
 
     AGENCY_DATA = (os.environ.get('AGENCY_DATA') or
                    os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data', 'agencies.csv'))
@@ -35,6 +41,7 @@ class Config:
     SFTP_UPLOAD_DIRECTORY = os.environ.get('SFTP_UPLOAD_DIRECTORY')
 
     # Authentication Settings
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=int(os.environ.get('PERMANENT_SESSION_LIFETIME', 30)))
     SAML_PATH = (os.environ.get('SAML_PATH') or
                 os.path.join(os.path.abspath(os.path.dirname(__file__)), 'saml'))
     IDP = os.environ.get('IDP')

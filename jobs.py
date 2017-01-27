@@ -4,7 +4,6 @@ from urllib.parse import urljoin
 from flask import (
     render_template,
     current_app,
-    url_for,
 )
 from app import calendar, scheduler
 from app.models import Requests, Events, Emails
@@ -13,6 +12,7 @@ from app.constants.event_type import EMAIL_NOTIFICATION_SENT
 from app.constants.response_privacy import PRIVATE
 from app.lib.db_utils import update_object, create_object
 from app.lib.email_utils import send_email
+
 
 # NOTE: (For Future Reference)
 # If we find ourselves in need of a request context,
@@ -36,8 +36,10 @@ def update_request_statuses():
         template = "email_templates/email_request_status_changed"
 
         for request in requests_overdue:
-            page = url_for('request.view', request_id=request.id)
-            subject = "Request Overdue"
+            # FIXME: Need to use built in url_for: page = url_for('request.view', request_id=request.id)
+            page = urljoin(current_app.config['BASE_URL'], "{view_request_endpoint}/{request_id}".format(
+                view_request_endpoint=current_app.config['VIEW_REQUEST_ENDPOINT'], request_id=request.id))
+            subject = "Request {request_id} Overdue".format(request_id=request.id)
             if request.status != request_status.OVERDUE:
                 update_object(
                     {"status": request_status.OVERDUE},
@@ -83,9 +85,11 @@ def update_request_statuses():
             )
 
         for request in requests_due_soon:
-            page = url_for('request.view', request_id=request.id)
-            subject = "Requests Due Soon"
-            timedelta_until_due = request.due_date - now
+            # FIXME: Need to use built in url_for: page = url_for('request.view', request_id=request.id)
+            page = urljoin(current_app.config['BASE_URL'], "{view_request_endpoint}/{request_id}".format(
+                view_request_endpoint=current_app.config['VIEW_REQUEST_ENDPOINT'], request_id=request.id))
+            subject = "Request {request_id} Due Soon".format(request_id=request.id)
+            days_until_due = calendar.busdaycount(request.due_date, now)
             if request.status != request_status.DUE_SOON:
                 update_object(
                     {"status": request_status.DUE_SOON},
@@ -98,7 +102,7 @@ def update_request_statuses():
                 template=template,
                 request=request,
                 request_status=request_status,
-                days_until_due=timedelta_until_due.days,
+                days_until_due=days_until_due,
                 agency_name=request.agency.name,
                 page=page,
             )
@@ -113,7 +117,7 @@ def update_request_statuses():
                     template + ".html",
                     request=request,
                     request_status=request_status,
-                    days_until_due=timedelta_until_due.days,
+                    days_until_due=days_until_due,
                     agency_name=request.agency.name,
                     page=page,
                 )

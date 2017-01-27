@@ -29,21 +29,20 @@ app = create_app(os.getenv('FLASK_CONFIG') or 'default')
 manager = Manager(app)
 migrate = Migrate(app, db)
 
+#
+# class Celery(Command):
+#     """
+#     Start Celery
+#     """
+#
+#     # TODO: autoreload and background options?
+#     # http://stackoverflow.com/questions/21666229/celery-auto-reload-on-any-changes
+#     # http://docs.celeryproject.org/en/latest/tutorials/daemonizing.html
+#
+#     def run(self):
+#         subprocess.call(['celery', 'worker', '-A', 'celery_worker.celery', '--loglevel=info'])
 
-class Celery(Command):
-    """
-    Start Celery
-    """
 
-    # TODO: autoreload and background options?
-    # http://stackoverflow.com/questions/21666229/celery-auto-reload-on-any-changes
-    # http://docs.celeryproject.org/en/latest/tutorials/daemonizing.html
-    @classmethod
-    def run(self):
-        subprocess.call(['celery', 'worker', '-A', 'celery_worker.celery', '--loglevel=info'])
-
-
-@classmethod
 def make_shell_context():
     return dict(
         app=app,
@@ -61,7 +60,7 @@ def make_shell_context():
 
 manager.add_command("shell", Shell(make_context=make_shell_context))
 manager.add_command("db", MigrateCommand)
-manager.add_command("celery", Celery())
+# manager.add_command("celery", Celery())
 
 
 @manager.option("-t", "--test-name", help="Specify tests (file, class, or specific test)", dest='test_name')

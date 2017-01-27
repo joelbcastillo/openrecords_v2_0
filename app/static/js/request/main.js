@@ -1,4 +1,4 @@
-// Don"t cache ajax requests
+// Don't cache ajax requests
 $.ajaxSetup({ cache: false });
 
 $(function () {
@@ -30,8 +30,9 @@ function characterCounter (target, limit, currentLength) {
      *
      * */
     var length = limit - currentLength;
-    $(target).text(length + " characters remaining");
-    if (length === 0) {
+    var s = length === 1 ? "" : "s";
+    $(target).text(length + " character" + s + " remaining");
+    if (length == 0) {
         $(target).css("color", "red");
     }
     else {
@@ -54,7 +55,7 @@ function regexUrlChecker (value) {
 /* jquery datepicker */
 
 // An array of holiday dates to be disabled
-var holidayDates = null;
+var holiday_dates = null;
 
 function notHolidayOrWeekend(date, forPicker) {
     /*
@@ -62,7 +63,7 @@ function notHolidayOrWeekend(date, forPicker) {
      *
      * WARNING:
      * --------
-     * "holidayDates" must be set globally before calling this function.
+     * 'holiday_dates' must be set globally before calling this function.
      */
     if (typeof(forPicker) === "undefined") {
         forPicker = true;

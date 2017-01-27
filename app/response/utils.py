@@ -32,6 +32,7 @@ from app.constants import (
     response_privacy,
     request_status,
     determination_type,
+    user_type_auth,
     UPDATED_FILE_DIRNAME,
     DELETED_FILE_DIRNAME,
     DEFAULT_RESPONSE_TOKEN_EXPIRY_DAYS,
@@ -44,7 +45,7 @@ from app.lib.date_utils import (
     get_due_date,
     process_due_date,
     get_release_date,
-    get_timezone_offset
+    local_to_utc,
 )
 from app.lib.db_utils import create_object, update_object, delete_object
 from app.lib.email_utils import send_email, get_agency_emails
@@ -218,17 +219,22 @@ def add_closing(request_id, reason_ids, email_content):
     current_request = Requests.query.filter_by(id=request_id).one()
     if current_request.status != request_status.CLOSED:
         if current_request.privacy['agency_description'] or not current_request.agency_description:
-            for privacy in current_request.responses.with_entities(Responses.privacy, Responses.type).filter(
-                            Responses.type != response_type.NOTE, Responses.type != response_type.EMAIL).all():
-                if privacy[0] != RELEASE_AND_PUBLIC:
-                    raise UserRequestException(action="close",
-                                               request_id=current_request.id,
-                                               reason="Agency Description is private and responses are not public"
-                                               )
+            reason = "Agency Description must be public and not empty, "
+            if current_request.responses.filter(
+                Responses.type != response_type.NOTE,  # ignore Notes
+                Responses.type != response_type.EMAIL,  # ignore Emails
+                Responses.deleted == False,  # ignore deleted responses
+                Responses.privacy != RELEASE_AND_PUBLIC,  # ignore public responses
+                Responses.is_editable == True  # ignore non-editable responses
+            ).first() is not None:
+                raise UserRequestException(action="close",
+                                           request_id=current_request.id,
+                                           reason=reason + "or all Responses (excluding Notes) must be public."
+                                           )
             if current_request.privacy['title']:
                 raise UserRequestException(action="close",
                                            request_id=current_request.id,
-                                           reason="Agency Description is private and title is private"
+                                           reason=reason + "or Title must be public."
                                            )
         update_object(
             {'status': request_status.CLOSED},
@@ -267,7 +273,8 @@ def add_reopening(request_id, date, tz_name, email_content):
 
     """
     if Requests.query.filter_by(id=request_id).one().status == request_status.CLOSED:
-        new_due_date = process_due_date(datetime.strptime(date, '%Y-%m-%d'), tz_name)
+        date = datetime.strptime(date, '%Y-%m-%d')
+        new_due_date = process_due_date(local_to_utc(date, tz_name))
         privacy = RELEASE_AND_PUBLIC
         response = Determinations(
             request_id,
@@ -443,14 +450,12 @@ def _get_new_due_date(request_id, extension_length, custom_due_date, tz_name):
     :return: new_due_date of the request
     """
     if extension_length == '-1':
-        new_due_date = process_due_date(datetime.strptime(custom_due_date, '%Y-%m-%d'),
-                                        tz_name)
+        date = datetime.strptime(custom_due_date, '%Y-%m-%d')
+        new_due_date = process_due_date(local_to_utc(date, tz_name))
     else:
         new_due_date = get_due_date(
             Requests.query.filter_by(id=request_id).one().due_date,
-            int(extension_length),
-            tz_name
-        )
+            int(extension_length))
     return new_due_date
 
 
@@ -615,11 +620,12 @@ def _reopening_email_handler(request_id, data, page, agency_name, email_template
 
     :return: the HTML of the rendered email template of a reopening
     """
+    date = datetime.strptime(data['date'], '%Y-%m-%d')
     return jsonify({"template": render_template(
         email_template,
         request_id=request_id,
         agency_name=agency_name,
-        date=process_due_date(datetime.strptime(data['date'], '%Y-%m-%d'), data['tz_name']),
+        date=process_due_date(local_to_utc(date, data['tz_name'])),
         page=page
     )}), 200
 
@@ -1025,6 +1031,7 @@ def _get_edit_response_template(editor):
         if editor.response.type == response_type.FILE \
         else os.path.join(current_app.config['EMAIL_TEMPLATE_DIR'], data['template_name'])
     email_summary_requester = None
+    email_summary_edited = None
     release_and_viewable = data.get('privacy') != PRIVATE and editor.requester_viewable
     was_private = editor.data_old.get('privacy') == PRIVATE
     requester_content = None
@@ -1047,39 +1054,65 @@ def _get_edit_response_template(editor):
         header = "The following will be emailed to {}:".format(recipient)
     else:
         if (data.get(
-                'privacy') == PRIVATE or not editor.requester_viewable) and editor.response.type != response_type.FILE:
+                'privacy') == PRIVATE and not editor.requester_viewable) and editor.response.type != response_type.FILE:
             email_template = 'email_templates/email_edit_private_response.html'
             default_content = None
         else:
             default_content = True
 
     # render email_template for requester if requester viewable keys are edited or privacy changed from private
-    if release_and_viewable or was_private:
-        email_summary_requester = render_template(email_template,
-                                                  default_content=default_content,
-                                                  content=requester_content,
-                                                  request_id=editor.response.request.id,
-                                                  agency_name=agency_name,
-                                                  response=editor.response,
-                                                  response_data=editor,
-                                                  page=page,
-                                                  privacy=data.get('privacy'),
-                                                  response_privacy=response_privacy)
-        default_content = True
-
-    agency = True
-    # email_summary_edited rendered every time for email that agency receives
-    email_summary_edited = render_template(email_template,
-                                           default_content=default_content,
-                                           content=agency_content,
-                                           request_id=editor.response.request.id,
-                                           agency_name=agency_name,
-                                           response=editor.response,
-                                           response_data=editor,
-                                           page=page,
-                                           privacy=data.get('privacy'),
-                                           response_privacy=response_privacy,
-                                           agency=agency)
+    if not editor.update:
+        if release_and_viewable or was_private:
+            email_summary_requester = render_template(email_template,
+                                                      default_content=default_content,
+                                                      content=requester_content,
+                                                      request_id=editor.response.request.id,
+                                                      agency_name=agency_name,
+                                                      response=editor.response,
+                                                      response_data=editor,
+                                                      page=page,
+                                                      privacy=data.get('privacy'),
+                                                      response_privacy=response_privacy)
+            default_content = True
+        agency = True
+        # email_summary_edited rendered every time for email that agency receives
+        email_summary_edited = render_template(email_template,
+                                               default_content=default_content,
+                                               content=agency_content,
+                                               request_id=editor.response.request.id,
+                                               agency_name=agency_name,
+                                               response=editor.response,
+                                               response_data=editor,
+                                               page=page,
+                                               privacy=data.get('privacy'),
+                                               response_privacy=response_privacy,
+                                               agency=agency)
+    # replace random string from request form input with html of file links generated by the server
+    elif editor.update and editor.response.type == response_type.FILE:
+        if requester_content is not None:
+            email_summary_requester = requester_content.replace(flask_request.form['replace-string'],
+                                                                render_template(
+                                                                    'email_templates/edit_response_file_links.html',
+                                                                    response_data=editor))
+            agency = True
+            default_content = True
+            email_summary_edited = render_template(email_template,
+                                                   default_content=default_content,
+                                                   content=agency_content,
+                                                   request_id=editor.response.request.id,
+                                                   agency_name=agency_name,
+                                                   response=editor.response,
+                                                   response_data=editor,
+                                                   page=page,
+                                                   privacy=data.get('privacy'),
+                                                   response_privacy=response_privacy,
+                                                   agency=agency)
+        else:
+            email_summary_edited = agency_content.replace(flask_request.form['replace-string'],
+                                                          render_template(
+                                                              'email_templates/edit_response_file_links.html',
+                                                              response_data=editor,
+                                                              agency=True))
     return email_summary_requester, email_summary_edited, header
 
 
@@ -1170,8 +1203,7 @@ def send_file_email(request_id, release_public_links, release_private_links, pri
     agency_name = Requests.query.filter_by(id=request_id).first().agency.name
     requester_email = Requests.query.filter_by(id=request_id).one().requester.email
     if release_public_links or release_private_links:
-        release_date = calendar.addbusdays(datetime.utcnow(), RELEASE_PUBLIC_DAYS)
-        release_date = release_date + get_timezone_offset(release_date, tz_name)
+        release_date = get_release_date(datetime.utcnow(), RELEASE_PUBLIC_DAYS, tz_name)
         email_content_requester = email_content.replace(replace_string,
                                                         render_template('email_templates/response_file_links.html',
                                                                         release_public_links=release_public_links,
@@ -1222,7 +1254,7 @@ def _send_edit_response_email(request_id, email_content_agency, email_content_re
     :type email_content_requester: str
 
     """
-    subject = 'Response Edited'
+    subject = '{request_id}: Response Edited'.format(request_id=request_id)
     bcc = get_agency_emails(request_id)
     requester_email = Requests.query.filter_by(id=request_id).one().requester.email
     safely_send_and_add_email(request_id, email_content_agency, subject, bcc=bcc)
@@ -1273,7 +1305,7 @@ def _send_delete_response_email(request_id, response):
             request_id=request_id,
             response=response,
             response_type=response_type),
-        'Response Deleted',
+        '{request_id}: Response Deleted'.format(request_id=request_id),
         to=get_agency_emails(request_id))
 
 
@@ -1314,8 +1346,8 @@ def create_response_event(events_type, response):
 
     """
     event = Events(request_id=response.request_id,
-                   user_guid=current_user.guid,
-                   auth_user_type=current_user.auth_user_type,
+                   user_guid=response.request.requester.guid if current_user.is_anonymous else current_user.guid,
+                   auth_user_type=user_type_auth.ANONYMOUS_USER if current_user.is_anonymous else current_user.auth_user_type,
                    type_=events_type,
                    timestamp=datetime.utcnow(),
                    response_id=response.id,
