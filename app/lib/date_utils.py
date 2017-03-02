@@ -27,7 +27,7 @@ def get_due_date(date_submitted, days_until_due, tz_name):
     :return: due date (utc) with time set to 22:00 PM (5:00 PM EST)
     """
     return process_due_date(
-        local_to_utc(calendar.addbusdays(date_submitted, days_until_due))
+        local_to_utc(calendar.addbusdays(date_submitted, days_until_due), tz_name)
     )
 
 
