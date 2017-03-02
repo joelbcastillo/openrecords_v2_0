@@ -378,7 +378,8 @@ class Users(UserMixin, db.Model):
                 if Users.query.filter_by(email=row['email']).first() is None:
                     user = cls(
                         guid=str(uuid4()),
-                        auth_user_type=user_type_auth.AGENCY_LDAP_USER if current_app.config['USE_LDAP'] else user_type_auth.AGENCY_USER,
+                        auth_user_type=user_type_auth.AGENCY_LDAP_USER if current_app.config[
+                            'USE_LDAP'] else user_type_auth.AGENCY_USER,
                         agency_ein=row['agency_ein'],
                         is_super=eval(row['is_super']),
                         is_agency_admin=eval(row['is_agency_admin']),
@@ -394,7 +395,6 @@ class Users(UserMixin, db.Model):
                     )
                     db.session.add(user)
             db.session.commit()
-
 
     def __init__(self, **kwargs):
         super(Users, self).__init__(**kwargs)
@@ -770,6 +770,12 @@ class Responses(db.Model):
         val['privacy'] = self.privacy
         return val
 
+    @property
+    def is_public(self):
+        return (self.privacy == response_privacy.RELEASE_AND_PUBLIC and
+                self.release_date is not None and
+                datetime.utcnow() > self.release_date)
+
     def __repr__(self):
         return '<Responses %r>' % self.id
 
@@ -947,6 +953,7 @@ class Notes(Responses):
     __mapper_args__ = {'polymorphic_identity': response_type.NOTE}
     id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
     content = db.Column(db.String(5000))
+
     # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
@@ -985,6 +992,7 @@ class Files(Responses):
     mime_type = db.Column(db.String)
     size = db.Column(db.Integer)
     hash = db.Column(db.String)
+
     # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
@@ -1025,6 +1033,7 @@ class Links(Responses):
     id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
     title = db.Column(db.String)
     url = db.Column(db.String)
+
     # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
@@ -1057,6 +1066,7 @@ class Instructions(Responses):
     __mapper_args__ = {'polymorphic_identity': response_type.INSTRUCTIONS}
     id = db.Column(db.Integer, db.ForeignKey(Responses.id), primary_key=True)
     content = db.Column(db.String)
+
     # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
@@ -1107,6 +1117,7 @@ class Determinations(Responses):
     ), nullable=False)
     reason = db.Column(db.String)  # nullable only for acknowledge and re-opening
     date = db.Column(db.DateTime)  # nullable only for denial, closing
+
     # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
@@ -1168,6 +1179,7 @@ class Emails(Responses):
     bcc = db.Column(db.String)
     subject = db.Column(db.String(5000))
     body = db.Column(db.String)
+
     # is_editable = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self,
